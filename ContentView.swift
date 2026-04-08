@@ -253,6 +253,14 @@ struct ContentView: View {
                     .padding(.bottom, 24)
             }
         }
+        .alert("保存失败", isPresented: Binding(
+            get: { state.saveError != nil },
+            set: { if !$0 { state.saveError = nil } }
+        )) {
+            Button("确定") { state.saveError = nil }
+        } message: {
+            Text(state.saveError ?? "")
+        }
         .animation(.appSpring, value: state.themeId)
         .preferredColorScheme(state.themeId == "auto" ? nil : (state.themeId == "paper" ? .light : .dark))
     }
