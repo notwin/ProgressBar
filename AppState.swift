@@ -156,16 +156,17 @@ class AppState: ObservableObject {
     }
 
     /// 生成默认示例任务列表
-    func defaultTasks() -> [TaskItem] {[
-        TaskItem(id: generateID(), title: "媒体部三个月打平计划", status: .inProgress, deadline: "2026.04.30",
-            logs: [LogEntry(id: generateID(), date: "26.04.08", text: "已经和小刘沟通完，明天给我 70 万每月的收入计划")], completedAt: nil),
-        TaskItem(id: generateID(), title: "铃木大伟的特定技能业务推进", status: .pending, deadline: "", logs: [], completedAt: nil),
-        TaskItem(id: generateID(), title: "工藤的系统台账打通", status: .inProgress, deadline: "2026.04.13",
-            logs: [LogEntry(id: generateID(), date: "26.04.08", text: "已经和工藤沟通完，这周完成上期的开发打通需求")], completedAt: nil),
-        TaskItem(id: generateID(), title: "办公室的全套布置（电脑、打印机、电话）", status: .pending, deadline: "", logs: [], completedAt: nil),
-        TaskItem(id: generateID(), title: "神盾二期上线发布", status: .blocked, deadline: "2026.04.30",
-            logs: [LogEntry(id: generateID(), date: "26.04.08", text: "和技术沟通完，目前卡点是视频语音通话，正在寻找解决方案")], completedAt: nil),
-    ]}
+    func defaultTasks() -> [TaskItem] {
+        let date = today()
+        return [
+            TaskItem(id: generateID(), title: "欢迎使用进度条", status: .done, deadline: "",
+                logs: [LogEntry(id: generateID(), date: date, text: "双击标题可以编辑，点击左侧图标切换状态")], completedAt: nil),
+            TaskItem(id: generateID(), title: "试试添加一条跟进记录", status: .inProgress, deadline: "",
+                logs: [LogEntry(id: generateID(), date: date, text: "hover 任务行，点击 + 号添加记录")], completedAt: nil),
+            TaskItem(id: generateID(), title: "设置截止日期", status: .pending, deadline: "",
+                logs: [], completedAt: nil),
+        ]
+    }
 
     // ── 分区操作 ──
 
