@@ -16,6 +16,7 @@ struct ContentView: View {
     @State private var showSearchBar = false
     @State private var toastVisible = false
     @State private var toastText = ""
+    @State private var toastWorkItem: DispatchWorkItem?
     @FocusState private var addTaskFocused: Bool
     @FocusState private var searchFocused: Bool
 
@@ -31,151 +32,13 @@ struct ContentView: View {
             Rectangle().fill(theme.border.opacity(0.15)).frame(height: 0.5)
 
             // ── 页面头部 ──
-            HStack(alignment: .bottom, spacing: 0) {
-                Text(section?.name ?? "")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(theme.t1)
-                if let s = state.activeSection {
-                    Text("  " + sectionSummary(s))
-                        .font(.system(size: 12))
-                        .foregroundColor(theme.t3)
-                        .padding(.bottom, 1)
-                }
-                Spacer()
-
-                // iCloud 同步状态指示
-                HStack(spacing: 2) {
-                if state.iCloudAvailable {
-                    Image(systemName: "checkmark.icloud")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(theme.green.opacity(0.6))
-                        .frame(width: 32, height: 32)
-                        .help("数据通过 iCloud Drive 自动同步")
-                }
-
-                // 导出按钮
-                Button(action: { showExportMenu.toggle() }) {
-                    Image(systemName: "arrow.up.doc")
-                        .font(.system(size: 14, weight: .medium)).foregroundColor(theme.t3)
-                        .frame(width: 32, height: 32)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .popover(isPresented: $showExportMenu, arrowEdge: .bottom) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Button(action: { state.copyToClipboard(); showExportMenu = false; flashToast("已复制到剪贴板") }) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "doc.on.clipboard").frame(width: 16)
-                                Text("复制到剪贴板")
-                            }.font(.system(size: 13)).foregroundColor(theme.t1)
-                            .padding(.horizontal, 10).padding(.vertical, 7)
-                            .frame(maxWidth: .infinity, alignment: .leading).cornerRadius(6)
-                        }.buttonStyle(.plain)
-                        Button(action: { showExportMenu = false; exportAsImage(style: .desktop) }) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "desktopcomputer").frame(width: 16)
-                                Text("导出桌面版图片")
-                            }.font(.system(size: 13)).foregroundColor(theme.t1)
-                            .padding(.horizontal, 10).padding(.vertical, 7)
-                            .frame(maxWidth: .infinity, alignment: .leading).cornerRadius(6)
-                        }.buttonStyle(.plain)
-                        Button(action: { showExportMenu = false; exportAsImage(style: .mobile) }) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "iphone").frame(width: 16)
-                                Text("导出手机版图片")
-                            }.font(.system(size: 13)).foregroundColor(theme.t1)
-                            .padding(.horizontal, 10).padding(.vertical, 7)
-                            .frame(maxWidth: .infinity, alignment: .leading).cornerRadius(6)
-                        }.buttonStyle(.plain)
-                        Divider().padding(.vertical, 2)
-                        Button(action: { showExportMenu = false; state.addToCalendar { count, err in flashToast(err ?? "已添加 \(count) 条日程") } }) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "calendar.badge.plus").frame(width: 16)
-                                Text("添加到日历")
-                            }.font(.system(size: 13)).foregroundColor(theme.t1)
-                            .padding(.horizontal, 10).padding(.vertical, 7)
-                            .frame(maxWidth: .infinity, alignment: .leading).cornerRadius(6)
-                        }.buttonStyle(.plain)
-                        Button(action: { showExportMenu = false; state.removeFromCalendar { count, err in flashToast(err ?? "已删除 \(count) 条日程") } }) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "calendar.badge.minus").frame(width: 16)
-                                Text("从日历删除")
-                            }.font(.system(size: 13)).foregroundColor(theme.red)
-                            .padding(.horizontal, 10).padding(.vertical, 7)
-                            .frame(maxWidth: .infinity, alignment: .leading).cornerRadius(6)
-                        }.buttonStyle(.plain)
-                    }.padding(6).frame(width: 180)
-                }
-
-                // 主题切换按钮
-                Button(action: { showThemePicker.toggle() }) {
-                    Image(systemName: "circle.lefthalf.filled")
-                        .font(.system(size: 14, weight: .medium)).foregroundColor(theme.t3)
-                        .frame(width: 32, height: 32)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .popover(isPresented: $showThemePicker) { ThemePickerView().environmentObject(state) }
-
-                // 快捷键提示按钮
-                Button(action: { showShortcutsPanel.toggle() }) {
-                    Image(systemName: "keyboard")
-                        .font(.system(size: 14, weight: .medium)).foregroundColor(theme.t3)
-                        .frame(width: 32, height: 32)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .popover(isPresented: $showShortcutsPanel) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("快捷键").font(.system(size: 13, weight: .semibold)).foregroundColor(theme.t1)
-                            .padding(.bottom, 4)
-                        shortcutRow("⌘ N", "新建任务")
-                        shortcutRow("⌘ F", "搜索任务")
-                        shortcutRow("⇧⌘ C", "复制到剪贴板")
-                        shortcutRow("⌘ E", "导出图片")
-                        shortcutRow("⇧⌘ S", "同步到日历")
-                        shortcutRow("⌘ /", "快捷键一览")
-                        Divider().padding(.vertical, 2)
-                        shortcutRow("Enter", "提交输入")
-                        shortcutRow("Esc", "取消/退出编辑")
-                        shortcutRow("双击标题", "编辑任务名称")
-                    }.padding(12).frame(width: 200)
-                }
-                }
-            }
-            .padding(.horizontal, 24).padding(.top, 10).padding(.bottom, 10)
+            headerToolbar
 
             Rectangle().fill(theme.border.opacity(0.15)).frame(height: 0.5)
 
             // ── 搜索栏 & 输入框容器 ──
             VStack(spacing: 8) {
-                // 搜索栏（Cmd+F 触发）
-                if showSearchBar {
-                    HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(searchFocused ? theme.accent : theme.t3)
-                        ZStack(alignment: .leading) {
-                            if searchText.isEmpty {
-                                Text("搜索任务...")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(searchFocused ? theme.t3.opacity(0.3) : theme.t3)
-                                    .allowsHitTesting(false)
-                            }
-                            TextField("", text: $searchText)
-                                .textFieldStyle(.plain).font(.system(size: 14)).foregroundColor(theme.t1)
-                                .focused($searchFocused)
-                                .onExitCommand { searchText = ""; showSearchBar = false }
-                        }
-                        if !searchText.isEmpty {
-                            Button(action: { searchText = ""; showSearchBar = false }) {
-                                Image(systemName: "xmark.circle.fill").font(.system(size: 12)).foregroundColor(theme.t3)
-                            }.buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.horizontal, 14).padding(.vertical, 8)
-                    .background(theme.surface.opacity(0.6)).cornerRadius(8)
-                }
+                if showSearchBar { searchBar }
 
                 // 添加任务输入框
                 HStack(spacing: 8) {
@@ -265,6 +128,153 @@ struct ContentView: View {
         .preferredColorScheme(state.themeId == "auto" ? nil : (state.themeId == "paper" ? .light : .dark))
     }
 
+    // ── 页面头部工具栏 ──
+    private var headerToolbar: some View {
+        HStack(alignment: .bottom, spacing: 0) {
+            Text(section?.name ?? "")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(theme.t1)
+            if let s = state.activeSection {
+                Text("  " + sectionSummary(s))
+                    .font(.system(size: 12))
+                    .foregroundColor(theme.t3)
+                    .padding(.bottom, 1)
+            }
+            Spacer()
+
+            HStack(spacing: 2) {
+                if state.iCloudAvailable {
+                    Image(systemName: "checkmark.icloud")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(theme.green.opacity(0.6))
+                        .frame(width: 32, height: 32)
+                        .help("数据通过 iCloud Drive 自动同步")
+                }
+
+                // 导出按钮
+                Button(action: { showExportMenu.toggle() }) {
+                    Image(systemName: "arrow.up.doc")
+                        .font(.system(size: 14, weight: .medium)).foregroundColor(theme.t3)
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $showExportMenu, arrowEdge: .bottom) { exportMenu }
+
+                // 主题切换按钮
+                Button(action: { showThemePicker.toggle() }) {
+                    Image(systemName: "circle.lefthalf.filled")
+                        .font(.system(size: 14, weight: .medium)).foregroundColor(theme.t3)
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $showThemePicker) { ThemePickerView().environmentObject(state) }
+
+                // 快捷键提示按钮
+                Button(action: { showShortcutsPanel.toggle() }) {
+                    Image(systemName: "keyboard")
+                        .font(.system(size: 14, weight: .medium)).foregroundColor(theme.t3)
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $showShortcutsPanel) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("快捷键").font(.system(size: 13, weight: .semibold)).foregroundColor(theme.t1)
+                            .padding(.bottom, 4)
+                        shortcutRow("⌘ N", "新建任务")
+                        shortcutRow("⌘ F", "搜索任务")
+                        shortcutRow("⇧⌘ C", "复制到剪贴板")
+                        shortcutRow("⌘ E", "导出图片")
+                        shortcutRow("⇧⌘ S", "同步到日历")
+                        shortcutRow("⌘ /", "快捷键一览")
+                        Divider().padding(.vertical, 2)
+                        shortcutRow("Enter", "提交输入")
+                        shortcutRow("Esc", "取消/退出编辑")
+                        shortcutRow("双击标题", "编辑任务名称")
+                    }.padding(12).frame(width: 200)
+                }
+            }
+        }
+        .padding(.horizontal, 24).padding(.top, 10).padding(.bottom, 10)
+    }
+
+    // ── 搜索栏 ──
+    private var searchBar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(searchFocused ? theme.accent : theme.t3)
+            ZStack(alignment: .leading) {
+                if searchText.isEmpty {
+                    Text("搜索任务...")
+                        .font(.system(size: 14))
+                        .foregroundColor(searchFocused ? theme.t3.opacity(0.3) : theme.t3)
+                        .allowsHitTesting(false)
+                }
+                TextField("", text: $searchText)
+                    .textFieldStyle(.plain).font(.system(size: 14)).foregroundColor(theme.t1)
+                    .focused($searchFocused)
+                    .onExitCommand { searchText = ""; showSearchBar = false }
+            }
+            if !searchText.isEmpty {
+                Button(action: { searchText = ""; showSearchBar = false }) {
+                    Image(systemName: "xmark.circle.fill").font(.system(size: 12)).foregroundColor(theme.t3)
+                }.buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 8)
+        .background(theme.surface.opacity(0.6)).cornerRadius(8)
+    }
+
+    // ── 导出菜单 ──
+    private var exportMenu: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Button(action: { state.copyToClipboard(); showExportMenu = false; flashToast("已复制到剪贴板") }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "doc.on.clipboard").frame(width: 16)
+                    Text("复制到剪贴板")
+                }.font(.system(size: 13)).foregroundColor(theme.t1)
+                .padding(.horizontal, 10).padding(.vertical, 7)
+                .frame(maxWidth: .infinity, alignment: .leading).cornerRadius(6)
+            }.buttonStyle(.plain)
+            Button(action: { showExportMenu = false; exportAsImage(style: .desktop) }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "desktopcomputer").frame(width: 16)
+                    Text("导出桌面版图片")
+                }.font(.system(size: 13)).foregroundColor(theme.t1)
+                .padding(.horizontal, 10).padding(.vertical, 7)
+                .frame(maxWidth: .infinity, alignment: .leading).cornerRadius(6)
+            }.buttonStyle(.plain)
+            Button(action: { showExportMenu = false; exportAsImage(style: .mobile) }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "iphone").frame(width: 16)
+                    Text("导出手机版图片")
+                }.font(.system(size: 13)).foregroundColor(theme.t1)
+                .padding(.horizontal, 10).padding(.vertical, 7)
+                .frame(maxWidth: .infinity, alignment: .leading).cornerRadius(6)
+            }.buttonStyle(.plain)
+            Divider().padding(.vertical, 2)
+            Button(action: { showExportMenu = false; state.addToCalendar { count, err in flashToast(err ?? "已添加 \(count) 条日程") } }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "calendar.badge.plus").frame(width: 16)
+                    Text("添加到日历")
+                }.font(.system(size: 13)).foregroundColor(theme.t1)
+                .padding(.horizontal, 10).padding(.vertical, 7)
+                .frame(maxWidth: .infinity, alignment: .leading).cornerRadius(6)
+            }.buttonStyle(.plain)
+            Button(action: { showExportMenu = false; state.removeFromCalendar { count, err in flashToast(err ?? "已删除 \(count) 条日程") } }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "calendar.badge.minus").frame(width: 16)
+                    Text("从日历删除")
+                }.font(.system(size: 13)).foregroundColor(theme.red)
+                .padding(.horizontal, 10).padding(.vertical, 7)
+                .frame(maxWidth: .infinity, alignment: .leading).cornerRadius(6)
+            }.buttonStyle(.plain)
+        }.padding(6).frame(width: 180)
+    }
+
     /// 快捷键行
     @ViewBuilder
     func shortcutRow(_ key: String, _ desc: String) -> some View {
@@ -293,13 +303,17 @@ struct ContentView: View {
         state.addTask(title: t); newTaskTitle = ""
     }
 
-    /// 显示底部 Toast 提示（2秒后自动消失）
+    /// 显示底部 Toast 提示（2秒后自动消失，取消前一个 Toast）
     func flashToast(_ msg: String) {
+        // 取消前一个 Toast 的自动消失
+        toastWorkItem?.cancel()
         toastText = msg
         withAnimation(.spring(response: 0.3)) { toastVisible = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+        let workItem = DispatchWorkItem { [self] in
             withAnimation(.easeOut(duration: 0.3)) { toastVisible = false }
         }
+        toastWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0, execute: workItem)
     }
 
     /// 导出当前分区为 PNG 图片（离屏窗口 + cacheDisplay Retina 渲染）
@@ -324,6 +338,7 @@ struct ContentView: View {
 
         guard let rep = hostingView.bitmapImageRepForCachingDisplay(in: hostingView.bounds) else {
             offscreenWindow.orderOut(nil)
+            flashToast("导出失败：无法创建图像")
             return
         }
         hostingView.cacheDisplay(in: hostingView.bounds, to: rep)
@@ -332,10 +347,17 @@ struct ContentView: View {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [UTType.png]
         panel.nameFieldStringValue = "进度条-\(sec.name).png"
-        if panel.runModal() == .OK, let url = panel.url,
-           let png = rep.representation(using: .png, properties: [:]) {
-            try? png.write(to: url)
-            flashToast("已导出为图片")
+        if panel.runModal() == .OK, let url = panel.url {
+            guard let png = rep.representation(using: .png, properties: [:]) else {
+                flashToast("导出失败：无法编码 PNG")
+                return
+            }
+            do {
+                try png.write(to: url)
+                flashToast("已导出为图片")
+            } catch {
+                flashToast("导出失败: \(error.localizedDescription)")
+            }
         }
     }
 }

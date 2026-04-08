@@ -28,7 +28,7 @@ struct TaskRowView: View {
     @State private var isDragging = false
 
     var theme: ThemeColors { state.theme }
-    var info: StatusInfo { statusInfo(for: task.status) }
+    var info: StatusInfo { task.status.info }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -79,26 +79,19 @@ struct TaskRowView: View {
             Button(action: { showStatusMenu.toggle() }) {
                 Image(systemName: info.icon)
                     .font(.system(size: 18, weight: .light))
-                    .foregroundColor(themeColor(for: info.colorKey, theme))
+                    .foregroundColor(theme.color(for: info.colorKey))
                     .frame(width: 20, height: 20)
             }
             .buttonStyle(.plain)
             .popover(isPresented: $showStatusMenu, arrowEdge: .bottom) { statusMenu }
 
             // 任务标题
-            if editingTitle {
-                TextField("", text: $editedTitle, prompt: Text("任务名称").foregroundColor(theme.t3))
-                .textFieldStyle(.plain).font(.system(size: 14, weight: .medium)).foregroundColor(theme.t1)
-                .focused($titleInputFocused)
-                .onAppear { DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { titleInputFocused = true } }
-                .onSubmit { if !editedTitle.isEmpty { state.editTitle(task.id, editedTitle) }; editingTitle = false }
-                .onExitCommand { editingTitle = false }
-            } else {
-                Text(task.title)
-                    .font(.system(size: 15, weight: .medium)).foregroundColor(theme.t1)
-                    .lineLimit(1).truncationMode(.tail).help(task.title)
-                    .onTapGesture(count: 2) { editedTitle = task.title; editingTitle = true }
-            }
+            EditableTitleView(
+                task: task, theme: theme,
+                editingTitle: $editingTitle, editedTitle: $editedTitle,
+                titleInputFocused: $titleInputFocused,
+                onCommit: { title in state.editTitle(task.id, title) }
+            )
 
             Spacer()
 
@@ -130,19 +123,20 @@ struct TaskRowView: View {
     // ── 状态选择菜单 ──
     private var statusMenu: some View {
         VStack(alignment: .leading, spacing: 2) {
-            ForEach(STATUS_OPTIONS, id: \.key) { key, opt in
-                Button(action: { state.setStatus(task.id, key); showStatusMenu = false }) {
+            ForEach(TaskStatus.allCases, id: \.self) { status in
+                let opt = status.info
+                Button(action: { state.setStatus(task.id, status); showStatusMenu = false }) {
                     HStack(spacing: 8) {
                         Image(systemName: opt.icon).font(.system(size: 14))
-                            .foregroundColor(themeColor(for: opt.colorKey, theme)).frame(width: 18)
+                            .foregroundColor(theme.color(for: opt.colorKey)).frame(width: 18)
                         Text(opt.label).font(.system(size: 13)).foregroundColor(theme.t1)
                         Spacer()
-                        if task.status == key {
+                        if task.status == status {
                             Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundColor(theme.accent)
                         }
                     }
                     .padding(.horizontal, 10).padding(.vertical, 6)
-                    .background(task.status == key ? theme.accent.opacity(0.08) : Color.clear)
+                    .background(task.status == status ? theme.accent.opacity(0.08) : Color.clear)
                     .cornerRadius(6)
                 }.buttonStyle(.plain)
             }
@@ -169,7 +163,7 @@ struct TaskRowView: View {
                     let dlColor = overdue ? theme.red : theme.orange
                     HStack(spacing: 3) {
                         if overdue { Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 9)) }
-                        Text(task.deadline).font(.system(size: 11, weight: .medium, design: .monospaced))
+                        Text(deadlineDisplay(task.deadline)).font(.system(size: 11, weight: .medium, design: .monospaced))
                     }
                     .foregroundColor(dlColor).padding(.horizontal, 8).padding(.vertical, 3)
                     .background(dlColor.opacity(0.1)).cornerRadius(4)
@@ -214,34 +208,17 @@ struct TaskRowView: View {
                     Text("收起").font(.system(size: 11, weight: .medium)).foregroundColor(theme.accent.opacity(0.7))
                 }.buttonStyle(.plain).padding(.top, 4)
             }
-            if showLogInput { logInputView }
+            if showLogInput {
+                LogInputView(
+                    logInput: $logInput, theme: theme,
+                    logInputFocused: $logInputFocused,
+                    onSubmit: { submitLog() },
+                    onCancel: { withAnimation(.appFast) { showLogInput = false; logInput = "" } }
+                )
+            }
         }
         .padding(.leading, 44).padding(.trailing, 14).padding(.bottom, 8)
         .transition(.opacity.combined(with: .move(edge: .top)))
-    }
-
-    // ── 日志输入框 ──
-    private var logInputView: some View {
-        HStack(spacing: 6) {
-            ZStack(alignment: .leading) {
-                if logInput.isEmpty {
-                    Text("记录进展...").font(.system(size: 13))
-                        .foregroundColor(logInputFocused ? theme.t3.opacity(0.3) : theme.t3)
-                        .allowsHitTesting(false)
-                }
-                TextField("", text: $logInput)
-                    .textFieldStyle(.plain).font(.system(size: 13)).foregroundColor(theme.t1)
-                    .focused($logInputFocused).onSubmit { submitLog() }.onAppear { logInputFocused = true }
-            }
-            .padding(.horizontal, 8).padding(.vertical, 5).background(theme.bg).cornerRadius(5)
-            Button(action: submitLog) {
-                Image(systemName: "arrow.up.circle.fill").font(.system(size: 18))
-                    .foregroundColor(logInput.trimmingCharacters(in: .whitespaces).isEmpty ? theme.t3 : theme.accent)
-            }.buttonStyle(.plain)
-            Button(action: { withAnimation(.appFast) { showLogInput = false; logInput = "" } }) {
-                Image(systemName: "xmark").font(.system(size: 8, weight: .bold)).foregroundColor(theme.t3)
-            }.buttonStyle(.plain)
-        }.padding(.top, 4).transition(.opacity)
     }
 
     func submitLog() {
@@ -258,6 +235,70 @@ struct TaskRowView: View {
                 .foregroundColor(color).frame(width: 28, height: 28)
                 .contentShape(Rectangle())
         }.buttonStyle(.plain)
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 日志输入子视图
+// ═══════════════════════════════════════════════════════════════════
+
+private struct LogInputView: View {
+    @Binding var logInput: String
+    let theme: ThemeColors
+    var logInputFocused: FocusState<Bool>.Binding
+    let onSubmit: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ZStack(alignment: .leading) {
+                if logInput.isEmpty {
+                    Text("记录进展...").font(.system(size: 13))
+                        .foregroundColor(logInputFocused.wrappedValue ? theme.t3.opacity(0.3) : theme.t3)
+                        .allowsHitTesting(false)
+                }
+                TextField("", text: $logInput)
+                    .textFieldStyle(.plain).font(.system(size: 13)).foregroundColor(theme.t1)
+                    .focused(logInputFocused).onSubmit { onSubmit() }.onAppear { logInputFocused.wrappedValue = true }
+            }
+            .padding(.horizontal, 8).padding(.vertical, 5).background(theme.bg).cornerRadius(5)
+            Button(action: onSubmit) {
+                Image(systemName: "arrow.up.circle.fill").font(.system(size: 18))
+                    .foregroundColor(logInput.trimmingCharacters(in: .whitespaces).isEmpty ? theme.t3 : theme.accent)
+            }.buttonStyle(.plain)
+            Button(action: onCancel) {
+                Image(systemName: "xmark").font(.system(size: 8, weight: .bold)).foregroundColor(theme.t3)
+            }.buttonStyle(.plain)
+        }.padding(.top, 4).transition(.opacity)
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 可编辑标题子视图
+// ═══════════════════════════════════════════════════════════════════
+
+private struct EditableTitleView: View {
+    let task: TaskItem
+    let theme: ThemeColors
+    @Binding var editingTitle: Bool
+    @Binding var editedTitle: String
+    var titleInputFocused: FocusState<Bool>.Binding
+    let onCommit: (String) -> Void
+
+    var body: some View {
+        if editingTitle {
+            TextField("", text: $editedTitle, prompt: Text("任务名称").foregroundColor(theme.t3))
+            .textFieldStyle(.plain).font(.system(size: 14, weight: .medium)).foregroundColor(theme.t1)
+            .focused(titleInputFocused)
+            .onAppear { DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { titleInputFocused.wrappedValue = true } }
+            .onSubmit { if !editedTitle.isEmpty { onCommit(editedTitle) }; editingTitle = false }
+            .onExitCommand { editingTitle = false }
+        } else {
+            Text(task.title)
+                .font(.system(size: 15, weight: .medium)).foregroundColor(theme.t1)
+                .lineLimit(1).truncationMode(.tail).help(task.title)
+                .onTapGesture(count: 2) { editedTitle = task.title; editingTitle = true }
+        }
     }
 }
 

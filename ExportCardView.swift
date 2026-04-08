@@ -47,14 +47,14 @@ struct ExportCardView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         // 任务主行
                         HStack(spacing: 10) {
-                            let info = statusInfo(for: task.status)
+                            let info = task.status.info
                             Image(systemName: info.icon).font(.system(size: s.iconSize))
-                                .foregroundColor(themeColor(for: info.colorKey, theme)).frame(width: 20)
+                                .foregroundColor(theme.color(for: info.colorKey)).frame(width: 20)
                             Text(task.title).font(.system(size: s.taskFontSize, weight: .medium))
                                 .foregroundColor(theme.t1).lineLimit(2)
                             Spacer()
                             if !task.deadline.isEmpty {
-                                Text(task.deadline).font(.system(size: s.deadlineSize, design: .monospaced)).foregroundColor(theme.orange)
+                                Text(deadlineDisplay(task.deadline)).font(.system(size: s.deadlineSize, design: .monospaced)).foregroundColor(theme.orange)
                             }
                         }.padding(.horizontal, s.hPad).padding(.vertical, s.taskVPad)
                         // 跟进记录

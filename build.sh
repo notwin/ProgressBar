@@ -10,7 +10,8 @@ APP_PATH="/Applications/进度条.app"
 echo "==> 编译 main.swift ..."
 cd "$SCRIPT_DIR"
 swiftc \
-  Models.swift Theme.swift AppState.swift \
+  Models.swift Theme.swift \
+  PersistenceManager.swift CalendarManager.swift AppState.swift \
   CalendarPicker.swift \
   SectionTabBar.swift TaskRowView.swift ArchiveSectionView.swift \
   ThemePickerView.swift ExportCardView.swift ContentView.swift \

@@ -37,6 +37,7 @@ struct SectionTabBar: View {
                             withAnimation(.appSpring) {
                                 state.activeSectionId = sec.id
                             }
+                            state.save()
                         }) {
                             HStack(spacing: 4) {
                                 Text(sec.name)
