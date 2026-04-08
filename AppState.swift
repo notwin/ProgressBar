@@ -298,6 +298,7 @@ class AppState: ObservableObject {
         let log = LogEntry(id: generateID(), date: today(), text: text)
         withAnimation(.appSpring) {
             sections[si].tasks[ti].logs.append(log)
+            sections[si].tasks[ti].logs.sort { $0.date < $1.date }
             let lower = text.lowercased()
             if Self.blockedKeywords.contains(where: { lower.contains($0) }) {
                 sections[si].tasks[ti].status = .blocked
@@ -306,6 +307,23 @@ class AppState: ObservableObject {
             }
         }
         save()
+    }
+
+    /// 修改日志日期并按日期排序
+    func updateLogDate(_ taskId: String, logId: String, newDate: String) {
+        guard let si = activeSectionIndex,
+              let ti = sections[si].tasks.firstIndex(where: { $0.id == taskId }),
+              let li = sections[si].tasks[ti].logs.firstIndex(where: { $0.id == logId }) else { return }
+        sections[si].tasks[ti].logs[li].date = newDate
+        sortLogs(taskId: taskId)
+        save()
+    }
+
+    /// 按日期排序日志（旧→新）
+    private func sortLogs(taskId: String) {
+        guard let si = activeSectionIndex,
+              let ti = sections[si].tasks.firstIndex(where: { $0.id == taskId }) else { return }
+        sections[si].tasks[ti].logs.sort { $0.date < $1.date }
     }
 
     /// 删除任务的某条进展日志
