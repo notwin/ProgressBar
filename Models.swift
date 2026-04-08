@@ -10,7 +10,7 @@ struct LogEntry: Identifiable, Codable, Equatable {
     var text: String
 }
 
-enum TaskStatus: String, Codable, Equatable {
+enum TaskStatus: String, Codable, Equatable, CaseIterable {
     case pending = "pending"
     case inProgress = "in_progress"
     case blocked = "blocked"
@@ -24,7 +24,7 @@ struct TaskItem: Identifiable, Codable, Equatable {
     var deadline: String
     var logs: [LogEntry]
     var completedAt: String?
-    var isDone: Bool { completedAt != nil }
+    var isDone: Bool { status == .done }
 }
 
 struct TaskSection: Identifiable, Codable, Equatable {
@@ -35,31 +35,54 @@ struct TaskSection: Identifiable, Codable, Equatable {
 }
 
 struct AppData: Codable {
+    var version: Int = 1
     var sections: [TaskSection]
     var themeId: String
     var activeSectionId: String
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// 任务状态定义（待开始、进行中、推进中）
+// 主题颜色键枚举（类型安全替代字符串）
+// ═══════════════════════════════════════════════════════════════════
+
+enum ThemeColorKey: String {
+    case accent, orange, green, red, purple, t3
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 任务状态信息（图标、标签、颜色）
 // ═══════════════════════════════════════════════════════════════════
 
 struct StatusInfo {
     let icon: String
     let label: String
-    let colorKey: String
+    let colorKey: ThemeColorKey
 }
 
-let STATUS_OPTIONS: [(key: TaskStatus, info: StatusInfo)] = [
-    (.pending,    StatusInfo(icon: "circle",                      label: "待开始", colorKey: "t3")),
-    (.inProgress, StatusInfo(icon: "circle.fill",                 label: "进行中", colorKey: "accent")),
-    (.blocked,    StatusInfo(icon: "exclamationmark.circle.fill", label: "已阻塞", colorKey: "red")),
-    (.done,       StatusInfo(icon: "checkmark.circle.fill",       label: "已完成", colorKey: "green")),
-]
+extension TaskStatus {
+    /// 状态对应的图标、标签和颜色
+    var info: StatusInfo {
+        switch self {
+        case .pending:    return StatusInfo(icon: "circle",                      label: "待开始", colorKey: .t3)
+        case .inProgress: return StatusInfo(icon: "circle.fill",                 label: "进行中", colorKey: .accent)
+        case .blocked:    return StatusInfo(icon: "exclamationmark.circle.fill", label: "已阻塞", colorKey: .red)
+        case .done:       return StatusInfo(icon: "checkmark.circle.fill",       label: "已完成", colorKey: .green)
+        }
+    }
+}
 
-/// 根据状态获取对应的图标、标签、颜色信息
-func statusInfo(for status: TaskStatus) -> StatusInfo {
-    STATUS_OPTIONS.first(where: { $0.key == status })?.info ?? STATUS_OPTIONS[0].info
+extension ThemeColors {
+    /// 根据颜色键返回对应颜色
+    func color(for key: ThemeColorKey) -> Color {
+        switch key {
+        case .accent: return accent
+        case .orange: return orange
+        case .green:  return green
+        case .red:    return red
+        case .purple: return purple
+        case .t3:     return t3
+        }
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -77,11 +100,16 @@ extension Animation {
 // 日期工具函数
 // ═══════════════════════════════════════════════════════════════════
 
-/// 将 "MM.DD" 格式的截止日期字符串转为 Date（智能推断年份）
+/// 将 "MM.DD" 或 "YYYY.MM.DD" 格式的截止日期字符串转为 Date
 func deadlineToDate(_ dl: String) -> Date? {
     let parts = dl.split(separator: ".").compactMap { Int($0) }
-    guard parts.count == 2 else { return nil }
     let cal = Calendar.current
+    if parts.count == 3 {
+        // YYYY.MM.DD 格式
+        return cal.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
+    }
+    guard parts.count == 2 else { return nil }
+    // MM.DD 格式（旧格式兼容，智能推断年份）
     let now = Date()
     let year = cal.component(.year, from: now)
     guard let date = cal.date(from: DateComponents(year: year, month: parts[0], day: parts[1])) else { return nil }
@@ -91,26 +119,28 @@ func deadlineToDate(_ dl: String) -> Date? {
     return date
 }
 
-/// 将 Date 转为 "MM.DD" 格式字符串
+/// 将 Date 转为 "YYYY.MM.DD" 格式字符串
 func dateToDeadline(_ date: Date) -> String {
     let c = Calendar.current
-    return String(format: "%02d.%02d", c.component(.month, from: date), c.component(.day, from: date))
+    return String(format: "%04d.%02d.%02d", c.component(.year, from: date),
+                  c.component(.month, from: date), c.component(.day, from: date))
+}
+
+/// 将 "MM.DD" 旧格式截止日期迁移为 "YYYY.MM.DD"
+func migrateDeadlineFormat(_ dl: String) -> String {
+    guard !dl.isEmpty, dl.split(separator: ".").count == 2, let date = deadlineToDate(dl) else { return dl }
+    return dateToDeadline(date)
+}
+
+/// 截止日期的显示格式（只显示 MM.DD）
+func deadlineDisplay(_ dl: String) -> String {
+    let parts = dl.split(separator: ".")
+    if parts.count == 3 { return "\(parts[1]).\(parts[2])" }
+    return dl
 }
 
 /// 判断截止日期是否已过期
 func isDeadlineOverdue(_ dl: String, status: TaskStatus) -> Bool {
     guard !dl.isEmpty, status != .done, let date = deadlineToDate(dl) else { return false }
     return date < Calendar.current.startOfDay(for: Date())
-}
-
-/// 根据颜色 key 和当前主题返回对应 Color
-func themeColor(for key: String, _ theme: ThemeColors) -> Color {
-    switch key {
-    case "accent": return theme.accent
-    case "orange": return theme.orange
-    case "green":  return theme.green
-    case "red":    return theme.red
-    case "purple": return theme.purple
-    default:       return theme.t3
-    }
 }
