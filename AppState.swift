@@ -10,7 +10,7 @@ import EventKit
 class AppState: ObservableObject {
     @Published var sections: [TaskSection] = []
     @Published var activeSectionId: String = ""
-    @Published var themeId: String = "dark"
+    @Published var themeId: String = "obsidian"
     @Published var iCloudAvailable: Bool = false
     @Published var focusNewTask: Bool = false
     @Published var focusSearch: Bool = false
@@ -145,7 +145,7 @@ class AppState: ObservableObject {
 // 迁移旧版主题设置
         let oldThemeURL = Self.localDir.appendingPathComponent("theme.txt")
         if let t = try? String(contentsOf: oldThemeURL, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines) {
-            themeId = (t == "default") ? "dark" : (THEMES.contains { $0.id == t } ? t : "dark")
+            themeId = (t == "default") ? "obsidian" : (THEMES.contains { $0.id == t } ? t : "obsidian")
         }
         save()
     }
