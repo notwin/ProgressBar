@@ -12,7 +12,6 @@ class AppState: ObservableObject {
     @Published var activeSectionId: String = ""
     @Published var themeId: String = "dark"
     @Published var iCloudAvailable: Bool = false
-    @Published var syncedTaskTitles: Set<String> = []
     @Published var focusNewTask: Bool = false
     @Published var focusSearch: Bool = false
     @Published var showShortcuts: Bool = false
@@ -21,7 +20,7 @@ class AppState: ObservableObject {
 
     private var syncTimer: Timer?
     private var lastFileDate: Date?
-    private var isSaving = false
+    private var saveGeneration: UInt64 = 0
 
     var theme: ThemeColors {
         if themeId == "auto" {
@@ -116,7 +115,13 @@ class AppState: ObservableObject {
             migrateOldData(oldTasks)
             return
         }
-        else { createDefaults(); return }
+        else {
+            // 数据损坏，备份后创建默认
+            let backupURL = dataURL.deletingLastPathComponent()
+                .appendingPathComponent("data.corrupt.\(Int(Date().timeIntervalSince1970)).json")
+            try? data.write(to: backupURL)
+            createDefaults(); return
+        }
 
         if !sections.contains(where: { $0.id == activeSectionId }) {
             activeSectionId = sections.first?.id ?? ""
@@ -129,7 +134,7 @@ class AppState: ObservableObject {
         var active: [TaskItem] = []
         var archived: [TaskItem] = []
         for var t in oldTasks {
-            if t.status == "done" {
+            if t.status == .done {
                 t.completedAt = "已迁移"
                 archived.append(t)
             } else { active.append(t) }
@@ -150,24 +155,27 @@ class AppState: ObservableObject {
         let sec = TaskSection(id: generateID(), name: "默认", tasks: defaultTasks(), archived: [])
         sections = [sec]
         activeSectionId = sec.id
-        themeId = "dark"
+        themeId = "obsidian"
         save()
     }
 
+    @Published var saveError: String?
+
     /// 将当前数据保存到磁盘（iCloud 可用时同时备份到本地）
     func save() {
-        isSaving = true
+        saveGeneration &+= 1
         let appData = AppData(sections: sections, themeId: themeId, activeSectionId: activeSectionId)
-        if let data = try? JSONEncoder().encode(appData) {
-            try? data.write(to: dataURL, options: .atomic)
-// 使用 iCloud 时同步备份到本地
+        do {
+            let data = try JSONEncoder().encode(appData)
+            try data.write(to: dataURL, options: .atomic)
             if Self.iCloudDir != nil {
                 let local = Self.localDir.appendingPathComponent("data.json")
                 try? data.write(to: local, options: .atomic)
             }
+        } catch {
+            saveError = "数据保存失败: \(error.localizedDescription)"
         }
         lastFileDate = fileModDate()
-        isSaving = false
     }
 
     /// 获取数据文件的最后修改时间
@@ -177,14 +185,15 @@ class AppState: ObservableObject {
 
     /// 检查远程文件是否有更新（iCloud 同步用）
     func checkRemoteChanges() {
-        guard !isSaving, let cur = fileModDate(), let last = lastFileDate, cur > last else { return }
-        DispatchQueue.main.async { [weak self] in self?.load() }
+        let gen = saveGeneration
+        guard let cur = fileModDate(), let last = lastFileDate, cur > last, gen == saveGeneration else { return }
+        load()
     }
 
     // ── 工具方法 ──
 
     func generateID() -> String {
-        String(UUID().uuidString.lowercased().filter { $0 != "-" }.prefix(12))
+        UUID().uuidString.lowercased()
     }
 
     /// 获取今天的日期字符串（格式：YY.MM.DD）
@@ -196,13 +205,13 @@ class AppState: ObservableObject {
 
     /// 生成默认示例任务列表
     func defaultTasks() -> [TaskItem] {[
-        TaskItem(id: generateID(), title: "媒体部三个月打平计划", status: "in_progress", deadline: "04.30",
+        TaskItem(id: generateID(), title: "媒体部三个月打平计划", status: .inProgress, deadline: "04.30",
             logs: [LogEntry(id: generateID(), date: "26.04.08", text: "已经和小刘沟通完，明天给我 70 万每月的收入计划")], completedAt: nil),
-        TaskItem(id: generateID(), title: "铃木大伟的特定技能业务推进", status: "pending", deadline: "", logs: [], completedAt: nil),
-        TaskItem(id: generateID(), title: "工藤的系统台账打通", status: "in_progress", deadline: "04.13",
+        TaskItem(id: generateID(), title: "铃木大伟的特定技能业务推进", status: .pending, deadline: "", logs: [], completedAt: nil),
+        TaskItem(id: generateID(), title: "工藤的系统台账打通", status: .inProgress, deadline: "04.13",
             logs: [LogEntry(id: generateID(), date: "26.04.08", text: "已经和工藤沟通完，这周完成上期的开发打通需求")], completedAt: nil),
-        TaskItem(id: generateID(), title: "办公室的全套布置（电脑、打印机、电话）", status: "pending", deadline: "", logs: [], completedAt: nil),
-        TaskItem(id: generateID(), title: "神盾二期上线发布", status: "blocked", deadline: "04.30",
+        TaskItem(id: generateID(), title: "办公室的全套布置（电脑、打印机、电话）", status: .pending, deadline: "", logs: [], completedAt: nil),
+        TaskItem(id: generateID(), title: "神盾二期上线发布", status: .blocked, deadline: "04.30",
             logs: [LogEntry(id: generateID(), date: "26.04.08", text: "和技术沟通完，目前卡点是视频语音通话，正在寻找解决方案")], completedAt: nil),
     ]}
 
@@ -235,7 +244,7 @@ class AppState: ObservableObject {
     /// 添加新任务到当前分区
     func addTask(title: String) {
         guard let i = activeSectionIndex else { return }
-        let t = TaskItem(id: generateID(), title: title, status: "pending", deadline: "", logs: [], completedAt: nil)
+        let t = TaskItem(id: generateID(), title: title, status: .pending, deadline: "", logs: [], completedAt: nil)
         withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) { sections[i].tasks.insert(t, at: 0) }
         save()
     }
@@ -243,9 +252,7 @@ class AppState: ObservableObject {
     /// 删除指定任务（同步移除日历事件）
     func deleteTask(_ taskId: String) {
         guard let i = activeSectionIndex else { return }
-        if let task = sections[i].tasks.first(where: { $0.id == taskId }) {
-            removeCalendarEvent(title: task.title)
-        }
+        removeCalendarEvent(taskId: taskId)
         withAnimation(.appSpring) { sections[i].tasks.removeAll { $0.id == taskId } }
         save()
     }
@@ -255,8 +262,8 @@ class AppState: ObservableObject {
         guard let si = activeSectionIndex,
               let ti = sections[si].tasks.firstIndex(where: { $0.id == taskId }) else { return }
         var task = sections[si].tasks[ti]
-        removeCalendarEvent(title: task.title)
-        task.completedAt = today(); task.status = "done"
+        removeCalendarEvent(taskId: taskId)
+        task.completedAt = today(); task.status = .done
         withAnimation(.appSlow) {
             sections[si].tasks.remove(at: ti)
             sections[si].archived.insert(task, at: 0)
@@ -269,7 +276,7 @@ class AppState: ObservableObject {
         guard let si = activeSectionIndex,
               let ai = sections[si].archived.firstIndex(where: { $0.id == taskId }) else { return }
         var task = sections[si].archived[ai]
-        task.completedAt = nil; task.status = "pending"
+        task.completedAt = nil; task.status = .pending
         withAnimation(.appSpring) {
             sections[si].archived.remove(at: ai)
             sections[si].tasks.append(task)
@@ -285,7 +292,7 @@ class AppState: ObservableObject {
     }
 
     /// 设置任务状态（待开始/进行中/推进中）
-    func setStatus(_ taskId: String, _ status: String) {
+    func setStatus(_ taskId: String, _ status: TaskStatus) {
         guard let si = activeSectionIndex,
               let ti = sections[si].tasks.firstIndex(where: { $0.id == taskId }) else { return }
         withAnimation(.easeInOut(duration: 0.2)) { sections[si].tasks[ti].status = status }
@@ -296,23 +303,19 @@ class AppState: ObservableObject {
     func setDeadline(_ taskId: String, _ dl: String) {
         guard let si = activeSectionIndex,
               let ti = sections[si].tasks.firstIndex(where: { $0.id == taskId }) else { return }
-        let oldTitle = sections[si].tasks[ti].title
-        // 先移除旧日历事件
-        removeCalendarEvent(title: oldTitle)
+        removeCalendarEvent(taskId: taskId)
         sections[si].tasks[ti].deadline = dl; save()
-        // 如果有新截止日期，添加到日历
-        if !dl.isEmpty { syncTaskToCalendar(title: oldTitle, deadline: dl) }
+        if !dl.isEmpty { syncTaskToCalendar(taskId: taskId, title: sections[si].tasks[ti].title, deadline: dl) }
     }
 
     /// 编辑任务标题（同步更新日历事件）
     func editTitle(_ taskId: String, _ title: String) {
         guard let si = activeSectionIndex,
               let ti = sections[si].tasks.firstIndex(where: { $0.id == taskId }) else { return }
-        let oldTitle = sections[si].tasks[ti].title
         let deadline = sections[si].tasks[ti].deadline
-        removeCalendarEvent(title: oldTitle)
+        removeCalendarEvent(taskId: taskId)
         sections[si].tasks[ti].title = title; save()
-        if !deadline.isEmpty { syncTaskToCalendar(title: title, deadline: deadline) }
+        if !deadline.isEmpty { syncTaskToCalendar(taskId: taskId, title: title, deadline: deadline) }
     }
 
     /// 拖拽排序：将任务从 fromIndex 移动到 toIndex
@@ -341,9 +344,9 @@ class AppState: ObservableObject {
             // 自动状态推断：检测阻塞关键词 → 已阻塞；待开始有日志 → 进行中
             let lower = text.lowercased()
             if Self.blockedKeywords.contains(where: { lower.contains($0) }) {
-                sections[si].tasks[ti].status = "blocked"
-            } else if sections[si].tasks[ti].status == "pending" {
-                sections[si].tasks[ti].status = "in_progress"
+                sections[si].tasks[ti].status = .blocked
+            } else if sections[si].tasks[ti].status == .pending {
+                sections[si].tasks[ti].status = .inProgress
             }
         }
         save()
@@ -373,39 +376,48 @@ class AppState: ObservableObject {
         return eventStore.events(matching: predicate)
     }
 
-    /// 刷新已同步到日历的任务标题集合
+    private let calendarTag = "progressbar:"
+
+    /// 刷新已同步到日历的任务 ID 集合
+    @Published var syncedTaskIds: Set<String> = []
+
     func refreshCalendarSync() {
-        guard let cal = findCalendar() else { syncedTaskTitles = []; return }
+        guard let cal = findCalendar() else { syncedTaskIds = []; return }
         let now = Date()
         let start = Calendar.current.date(byAdding: .month, value: -3, to: now)!
         let end = Calendar.current.date(byAdding: .month, value: 6, to: now)!
-        syncedTaskTitles = Set(calendarEvents(in: cal, from: start, to: end).compactMap { $0.title })
+        let events = calendarEvents(in: cal, from: start, to: end)
+        syncedTaskIds = Set(events.compactMap { $0.notes }.filter { $0.hasPrefix(calendarTag) }.map { String($0.dropFirst(calendarTag.count)) })
     }
 
-    /// 同步单个任务到日历
-    func syncTaskToCalendar(title: String, deadline: String) {
+    /// 同步单个任务到日历（用任务 ID 标识，避免标题匹配误操作）
+    func syncTaskToCalendar(taskId: String, title: String, deadline: String) {
         guard let cal = findCalendar() ?? getOrCreateCalendar(),
-              let date = deadlineToFullDate(deadline) else { return }
+              let date = deadlineToDate(deadline) else { return }
+        // 检查是否已存在
         let dayStart = Calendar.current.startOfDay(for: date)
         let dayEnd = Calendar.current.date(byAdding: .day, value: 1, to: dayStart)!
-        if calendarEvents(in: cal, from: dayStart, to: dayEnd).contains(where: { $0.title == title }) { return }
+        let tag = calendarTag + taskId
+        if calendarEvents(in: cal, from: dayStart, to: dayEnd).contains(where: { $0.notes == tag }) { return }
         let event = EKEvent(eventStore: eventStore)
         event.title = title
         event.isAllDay = true
         event.startDate = date
         event.endDate = date
         event.calendar = cal
+        event.notes = tag
         try? eventStore.save(event, span: .thisEvent)
         refreshCalendarSync()
     }
 
-    /// 从日历移除指定标题的事件
-    func removeCalendarEvent(title: String) {
+    /// 从日历移除指定任务 ID 的事件
+    func removeCalendarEvent(taskId: String) {
         guard let cal = findCalendar() else { return }
         let now = Date()
         let start = Calendar.current.date(byAdding: .month, value: -3, to: now)!
         let end = Calendar.current.date(byAdding: .month, value: 6, to: now)!
-        for event in calendarEvents(in: cal, from: start, to: end) where event.title == title {
+        let tag = calendarTag + taskId
+        for event in calendarEvents(in: cal, from: start, to: end) where event.notes == tag {
             try? eventStore.remove(event, span: .thisEvent)
         }
         refreshCalendarSync()
@@ -453,16 +465,15 @@ class AppState: ObservableObject {
             let tasksWithDeadline = section.tasks.filter { !$0.deadline.isEmpty }
             var count = 0
             for task in tasksWithDeadline {
-                guard let date = self.deadlineToFullDate(task.deadline) else { continue }
-                // 检查专属日历是否已存在同名同日事件
+                guard let date = deadlineToDate(task.deadline) else { continue }
+                let tag = self.calendarTag + task.id
                 let dayStart = Calendar.current.startOfDay(for: date)
                 let dayEnd = Calendar.current.date(byAdding: .day, value: 1, to: dayStart)!
-                let predicate = self.eventStore.predicateForEvents(withStart: dayStart, end: dayEnd, calendars: [cal])
-                let existing = self.eventStore.events(matching: predicate)
-                if existing.contains(where: { $0.title == task.title }) { continue }
+                if self.calendarEvents(in: cal, from: dayStart, to: dayEnd).contains(where: { $0.notes == tag }) { continue }
 
                 let event = EKEvent(eventStore: self.eventStore)
                 event.title = task.title
+                event.notes = tag
                 event.isAllDay = true
                 event.startDate = date
                 event.endDate = date
@@ -493,18 +504,13 @@ class AppState: ObservableObject {
         }
     }
 
-    /// 将 "MM.DD" 格式的截止日期转为 Date（复用全局 deadlineToDate）
-    func deadlineToFullDate(_ dl: String) -> Date? {
-        guard !dl.isEmpty else { return nil }
-        return deadlineToDate(dl)
-    }
 
     // ── 导出功能 ──
 
     /// 导出当前分区为纯文本格式
     func exportText() -> String {
         guard let section = activeSection else { return "" }
-        let icons: [String: String] = ["pending": "⚪", "in_progress": "🔵", "blocked": "🔴", "done": "✅"]
+        let icons: [TaskStatus: String] = [.pending: "⚪", .inProgress: "🔵", .blocked: "🔴", .done: "✅"]
         var out = "进度条 · \(section.name)\n" + String(repeating: "─", count: 30) + "\n\n"
         for (i, t) in section.tasks.enumerated() {
             let icon = icons[t.status] ?? "○"

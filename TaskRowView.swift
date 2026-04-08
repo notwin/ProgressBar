@@ -32,193 +32,8 @@ struct TaskRowView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // ── 主行内容 ──
-            HStack(spacing: 12) {
-                // 状态图标按钮
-                Button(action: { showStatusMenu.toggle() }) {
-                    Image(systemName: info.icon)
-                        .font(.system(size: 18, weight: .light))
-                        .foregroundColor(themeColor(for: info.colorKey, theme))
-                        .frame(width: 20, height: 20)
-                }
-                .buttonStyle(.plain)
-                .popover(isPresented: $showStatusMenu, arrowEdge: .bottom) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        ForEach(STATUS_OPTIONS, id: \.key) { key, opt in
-                            Button(action: { state.setStatus(task.id, key); showStatusMenu = false }) {
-                                HStack(spacing: 8) {
-                                    Image(systemName: opt.icon)
-                                        .font(.system(size: 14))
-                                        .foregroundColor(themeColor(for: opt.colorKey, theme))
-                                        .frame(width: 18)
-                                    Text(opt.label).font(.system(size: 13)).foregroundColor(theme.t1)
-                                    Spacer()
-                                    if task.status == key {
-                                        Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundColor(theme.accent)
-                                    }
-                                }
-                                .padding(.horizontal, 10).padding(.vertical, 6)
-                                .background(task.status == key ? theme.accent.opacity(0.08) : Color.clear)
-                                .cornerRadius(6)
-                            }.buttonStyle(.plain)
-                        }
-                        Divider().padding(.vertical, 4)
-                        Button(action: { showStatusMenu = false; showCompleteAlert = true }) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "archivebox").font(.system(size: 14)).foregroundColor(theme.t3).frame(width: 18)
-                                Text("归档").font(.system(size: 13, weight: .medium)).foregroundColor(theme.t3)
-                            }
-                            .padding(.horizontal, 10).padding(.vertical, 6).cornerRadius(6)
-                        }.buttonStyle(.plain)
-                    }.padding(8).frame(minWidth: 170)
-                }
-
-                // 任务标题
-                if editingTitle {
-                    TextField("", text: $editedTitle, prompt: Text("任务名称").foregroundColor(theme.t3))
-                    .textFieldStyle(.plain).font(.system(size: 14, weight: .medium)).foregroundColor(theme.t1)
-                    .focused($titleInputFocused)
-                    .onAppear {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { titleInputFocused = true }
-                    }
-                    .onSubmit {
-                        if !editedTitle.isEmpty { state.editTitle(task.id, editedTitle) }
-                        editingTitle = false
-                    }
-                    .onExitCommand { editingTitle = false }
-                } else {
-                    Text(task.title)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(theme.t1)
-                        .lineLimit(1).truncationMode(.tail)
-                        .help(task.title)
-                        .onTapGesture(count: 2) { editedTitle = task.title; editingTitle = true }
-                }
-
-                Spacer()
-
-                // 悬浮操作按钮（始终占位，hover 时显示）
-                HStack(spacing: 2) {
-                    hoverBtn("plus", theme.accent) { withAnimation(.easeOut(duration: 0.12)) { expanded = true; showLogInput = true } }
-                    hoverBtn("archivebox", theme.t3) { showCompleteAlert = true }
-                    hoverBtn("trash", theme.red) { showDeleteAlert = true }
-                }.opacity(hovered ? 1 : 0)
-
-                // 截止日期
-                if !task.deadline.isEmpty {
-                    HStack(spacing: 4) {
-                        if state.syncedTaskTitles.contains(task.title) {
-                            Image(systemName: "calendar.badge.checkmark")
-                                .font(.system(size: 10))
-                                .foregroundColor(theme.purple)
-                        }
-                        Button(action: { pickedDate = deadlineToDate(task.deadline); showDeadlinePicker = true }) {
-                            let overdue = task.status != "done" && isDeadlineOverdue(task.deadline)
-                            let dlColor = overdue ? theme.red : theme.orange
-                            HStack(spacing: 3) {
-                                if overdue {
-                                    Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 9))
-                                }
-                                Text(task.deadline)
-                                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                            }
-                            .foregroundColor(dlColor)
-                            .padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(dlColor.opacity(0.1)).cornerRadius(4)
-                        }.buttonStyle(.plain)
-                    }
-                } else {
-                    Button(action: { pickedDate = Date(); showDeadlinePicker = true }) {
-                        Image(systemName: "calendar.badge.plus").font(.system(size: 11)).foregroundColor(theme.t3)
-                    }.buttonStyle(.plain).opacity(hovered ? 1 : 0)
-                }
-
-                // 展开箭头
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .medium)).foregroundColor(theme.t3)
-                    .rotationEffect(.degrees(expanded ? 90 : 0))
-                    .animation(.appSpring, value: expanded)
-            }
-            .padding(.horizontal, 14).padding(.vertical, 9)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                if editingTitle {
-                    if !editedTitle.isEmpty { state.editTitle(task.id, editedTitle) }
-                    editingTitle = false
-                } else {
-                    withAnimation(.appSpring) { expanded.toggle() }
-                }
-            }
-
-            // ── 展开的日志区域 ──
-            if expanded {
-                VStack(alignment: .leading, spacing: 0) {
-                    if task.logs.isEmpty {
-                        Text("暂无进展记录").font(.system(size: 12)).foregroundColor(theme.t3).padding(.bottom, 8)
-                    }
-                    let visibleLogs = showAllLogs ? task.logs : Array(task.logs.suffix(3))
-                    if task.logs.count > 3 && !showAllLogs {
-                        Button(action: { withAnimation(.easeOut(duration: 0.15)) { showAllLogs = true } }) {
-                            Text("查看全部 \(task.logs.count) 条记录")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(theme.accent.opacity(0.7))
-                        }.buttonStyle(.plain).padding(.bottom, 4)
-                    }
-                    ForEach(visibleLogs) { log in
-                        HStack(alignment: .top, spacing: 10) {
-                            Text(log.date)
-                                .font(.system(size: 12, weight: .medium, design: .monospaced))
-                                .foregroundColor(theme.accent.opacity(0.8)).frame(minWidth: 52, alignment: .leading)
-                            Text(log.text).font(.system(size: 13)).foregroundColor(theme.t2)
-                                .fixedSize(horizontal: false, vertical: true)
-                            Spacer()
-                            Button(action: { deleteLogId = log.id; showDeleteLogAlert = true }) {
-                                Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
-                                    .foregroundColor(theme.t3.opacity(0.3)).frame(width: 14, height: 14)
-                            }.buttonStyle(.plain)
-                        }.padding(.vertical, 3)
-                        if log.id != visibleLogs.last?.id { Divider().opacity(0.15) }
-                    }
-                    if task.logs.count > 3 && showAllLogs {
-                        Button(action: { withAnimation(.easeOut(duration: 0.15)) { showAllLogs = false } }) {
-                            Text("收起")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(theme.accent.opacity(0.7))
-                        }.buttonStyle(.plain).padding(.top, 4)
-                    }
-
-                    // 添加日志：点击 + 展开输入框
-                    if showLogInput {
-                        HStack(spacing: 6) {
-                            ZStack(alignment: .leading) {
-                                if logInput.isEmpty {
-                                    Text("记录进展...")
-                                        .font(.system(size: 13))
-                                        .foregroundColor(logInputFocused ? theme.t3.opacity(0.3) : theme.t3)
-                                        .allowsHitTesting(false)
-                                }
-                                TextField("", text: $logInput)
-                                    .textFieldStyle(.plain).font(.system(size: 13)).foregroundColor(theme.t1)
-                                    .focused($logInputFocused)
-                                    .onSubmit { submitLog() }
-                                    .onAppear { logInputFocused = true }
-                            }
-                            .padding(.horizontal, 8).padding(.vertical, 5)
-                            .background(theme.bg).cornerRadius(5)
-                            Button(action: submitLog) {
-                                Image(systemName: "arrow.up.circle.fill").font(.system(size: 18))
-                                    .foregroundColor(logInput.trimmingCharacters(in: .whitespaces).isEmpty ? theme.t3 : theme.accent)
-                            }.buttonStyle(.plain)
-                            Button(action: { withAnimation(.easeOut(duration: 0.12)) { showLogInput = false; logInput = "" } }) {
-                                Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
-                                    .foregroundColor(theme.t3)
-                            }.buttonStyle(.plain)
-                        }.padding(.top, 4).transition(.opacity)
-                    }
-                }
-                .padding(.leading, 44).padding(.trailing, 14).padding(.bottom, 8)
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
+            headerRow
+            if expanded { logSection }
         }
         .background(hovered ? theme.surface : Color.clear)
         .cornerRadius(10)
@@ -255,6 +70,178 @@ struct TaskRowView: View {
                 }
             )
         }
+    }
+
+    // ── 主行内容 ──
+    private var headerRow: some View {
+        HStack(spacing: 12) {
+            // 状态图标按钮
+            Button(action: { showStatusMenu.toggle() }) {
+                Image(systemName: info.icon)
+                    .font(.system(size: 18, weight: .light))
+                    .foregroundColor(themeColor(for: info.colorKey, theme))
+                    .frame(width: 20, height: 20)
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: $showStatusMenu, arrowEdge: .bottom) { statusMenu }
+
+            // 任务标题
+            if editingTitle {
+                TextField("", text: $editedTitle, prompt: Text("任务名称").foregroundColor(theme.t3))
+                .textFieldStyle(.plain).font(.system(size: 14, weight: .medium)).foregroundColor(theme.t1)
+                .focused($titleInputFocused)
+                .onAppear { DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { titleInputFocused = true } }
+                .onSubmit { if !editedTitle.isEmpty { state.editTitle(task.id, editedTitle) }; editingTitle = false }
+                .onExitCommand { editingTitle = false }
+            } else {
+                Text(task.title)
+                    .font(.system(size: 15, weight: .medium)).foregroundColor(theme.t1)
+                    .lineLimit(1).truncationMode(.tail).help(task.title)
+                    .onTapGesture(count: 2) { editedTitle = task.title; editingTitle = true }
+            }
+
+            Spacer()
+
+            HStack(spacing: 2) {
+                hoverBtn("plus", theme.accent) { withAnimation(.appFast) { expanded = true; showLogInput = true } }
+                hoverBtn("archivebox", theme.t3) { showCompleteAlert = true }
+                hoverBtn("trash", theme.red) { showDeleteAlert = true }
+            }.opacity(hovered ? 1 : 0)
+
+            deadlineView
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 10, weight: .medium)).foregroundColor(theme.t3)
+                .rotationEffect(.degrees(expanded ? 90 : 0))
+                .animation(.appSpring, value: expanded)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 9)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if editingTitle {
+                if !editedTitle.isEmpty { state.editTitle(task.id, editedTitle) }
+                editingTitle = false
+            } else {
+                withAnimation(.appSpring) { expanded.toggle() }
+            }
+        }
+    }
+
+    // ── 状态选择菜单 ──
+    private var statusMenu: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(STATUS_OPTIONS, id: \.key) { key, opt in
+                Button(action: { state.setStatus(task.id, key); showStatusMenu = false }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: opt.icon).font(.system(size: 14))
+                            .foregroundColor(themeColor(for: opt.colorKey, theme)).frame(width: 18)
+                        Text(opt.label).font(.system(size: 13)).foregroundColor(theme.t1)
+                        Spacer()
+                        if task.status == key {
+                            Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundColor(theme.accent)
+                        }
+                    }
+                    .padding(.horizontal, 10).padding(.vertical, 6)
+                    .background(task.status == key ? theme.accent.opacity(0.08) : Color.clear)
+                    .cornerRadius(6)
+                }.buttonStyle(.plain)
+            }
+            Divider().padding(.vertical, 4)
+            Button(action: { showStatusMenu = false; showCompleteAlert = true }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "archivebox").font(.system(size: 14)).foregroundColor(theme.t3).frame(width: 18)
+                    Text("归档").font(.system(size: 13, weight: .medium)).foregroundColor(theme.t3)
+                }.padding(.horizontal, 10).padding(.vertical, 6).cornerRadius(6)
+            }.buttonStyle(.plain)
+        }.padding(8).frame(minWidth: 170)
+    }
+
+    // ── 截止日期 ──
+    @ViewBuilder
+    private var deadlineView: some View {
+        if !task.deadline.isEmpty {
+            HStack(spacing: 4) {
+                if state.syncedTaskIds.contains(task.id) {
+                    Image(systemName: "calendar.badge.checkmark").font(.system(size: 10)).foregroundColor(theme.purple)
+                }
+                Button(action: { pickedDate = deadlineToDate(task.deadline) ?? Date(); showDeadlinePicker = true }) {
+                    let overdue = isDeadlineOverdue(task.deadline, status: task.status)
+                    let dlColor = overdue ? theme.red : theme.orange
+                    HStack(spacing: 3) {
+                        if overdue { Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 9)) }
+                        Text(task.deadline).font(.system(size: 11, weight: .medium, design: .monospaced))
+                    }
+                    .foregroundColor(dlColor).padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(dlColor.opacity(0.1)).cornerRadius(4)
+                }.buttonStyle(.plain)
+            }
+        } else {
+            Button(action: { pickedDate = Date(); showDeadlinePicker = true }) {
+                Image(systemName: "calendar.badge.plus").font(.system(size: 11)).foregroundColor(theme.t3)
+            }.buttonStyle(.plain).opacity(hovered ? 1 : 0)
+        }
+    }
+
+    // ── 日志区域 ──
+    private var logSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if task.logs.isEmpty {
+                Text("暂无进展记录").font(.system(size: 12)).foregroundColor(theme.t3).padding(.bottom, 8)
+            }
+            let visibleLogs = showAllLogs ? task.logs : Array(task.logs.suffix(3))
+            if task.logs.count > 3 && !showAllLogs {
+                Button(action: { withAnimation(.appFade) { showAllLogs = true } }) {
+                    Text("查看全部 \(task.logs.count) 条记录")
+                        .font(.system(size: 11, weight: .medium)).foregroundColor(theme.accent.opacity(0.7))
+                }.buttonStyle(.plain).padding(.bottom, 4)
+            }
+            ForEach(visibleLogs) { log in
+                HStack(alignment: .top, spacing: 10) {
+                    Text(log.date).font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .foregroundColor(theme.accent.opacity(0.8)).frame(minWidth: 52, alignment: .leading)
+                    Text(log.text).font(.system(size: 13)).foregroundColor(theme.t2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer()
+                    Button(action: { deleteLogId = log.id; showDeleteLogAlert = true }) {
+                        Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+                            .foregroundColor(theme.t3.opacity(0.3)).frame(width: 14, height: 14)
+                    }.buttonStyle(.plain)
+                }.padding(.vertical, 3)
+                if log.id != visibleLogs.last?.id { Divider().opacity(0.15) }
+            }
+            if task.logs.count > 3 && showAllLogs {
+                Button(action: { withAnimation(.appFade) { showAllLogs = false } }) {
+                    Text("收起").font(.system(size: 11, weight: .medium)).foregroundColor(theme.accent.opacity(0.7))
+                }.buttonStyle(.plain).padding(.top, 4)
+            }
+            if showLogInput { logInputView }
+        }
+        .padding(.leading, 44).padding(.trailing, 14).padding(.bottom, 8)
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    // ── 日志输入框 ──
+    private var logInputView: some View {
+        HStack(spacing: 6) {
+            ZStack(alignment: .leading) {
+                if logInput.isEmpty {
+                    Text("记录进展...").font(.system(size: 13))
+                        .foregroundColor(logInputFocused ? theme.t3.opacity(0.3) : theme.t3)
+                        .allowsHitTesting(false)
+                }
+                TextField("", text: $logInput)
+                    .textFieldStyle(.plain).font(.system(size: 13)).foregroundColor(theme.t1)
+                    .focused($logInputFocused).onSubmit { submitLog() }.onAppear { logInputFocused = true }
+            }
+            .padding(.horizontal, 8).padding(.vertical, 5).background(theme.bg).cornerRadius(5)
+            Button(action: submitLog) {
+                Image(systemName: "arrow.up.circle.fill").font(.system(size: 18))
+                    .foregroundColor(logInput.trimmingCharacters(in: .whitespaces).isEmpty ? theme.t3 : theme.accent)
+            }.buttonStyle(.plain)
+            Button(action: { withAnimation(.appFast) { showLogInput = false; logInput = "" } }) {
+                Image(systemName: "xmark").font(.system(size: 8, weight: .bold)).foregroundColor(theme.t3)
+            }.buttonStyle(.plain)
+        }.padding(.top, 4).transition(.opacity)
     }
 
     func submitLog() {

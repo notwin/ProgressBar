@@ -24,9 +24,12 @@ swiftc \
   -o jindu
 
 echo "==> 关闭正在运行的应用 ..."
+killall 'ProgressBar' 2>/dev/null || true
+killall '进度条' 2>/dev/null || true
+sleep 1
 killall -9 'ProgressBar' 2>/dev/null || true
 killall -9 '进度条' 2>/dev/null || true
-sleep 2
+sleep 1
 
 echo "==> 部署到 $APP_PATH ..."
 # 如果 app bundle 不存在，从模板创建

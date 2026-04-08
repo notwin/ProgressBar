@@ -10,10 +10,17 @@ struct LogEntry: Identifiable, Codable, Equatable {
     var text: String
 }
 
+enum TaskStatus: String, Codable, Equatable {
+    case pending = "pending"
+    case inProgress = "in_progress"
+    case blocked = "blocked"
+    case done = "done"
+}
+
 struct TaskItem: Identifiable, Codable, Equatable {
     var id: String
     var title: String
-    var status: String       // pending, in_progress, blocked, done
+    var status: TaskStatus
     var deadline: String
     var logs: [LogEntry]
     var completedAt: String?
@@ -43,16 +50,16 @@ struct StatusInfo {
     let colorKey: String
 }
 
-let STATUS_OPTIONS: [(key: String, info: StatusInfo)] = [
-    ("pending",     StatusInfo(icon: "circle",                      label: "待开始", colorKey: "t3")),
-    ("in_progress", StatusInfo(icon: "circle.fill",                 label: "进行中", colorKey: "accent")),
-    ("blocked",     StatusInfo(icon: "exclamationmark.circle.fill", label: "已阻塞", colorKey: "red")),
-    ("done",        StatusInfo(icon: "checkmark.circle.fill",       label: "已完成", colorKey: "green")),
+let STATUS_OPTIONS: [(key: TaskStatus, info: StatusInfo)] = [
+    (.pending,    StatusInfo(icon: "circle",                      label: "待开始", colorKey: "t3")),
+    (.inProgress, StatusInfo(icon: "circle.fill",                 label: "进行中", colorKey: "accent")),
+    (.blocked,    StatusInfo(icon: "exclamationmark.circle.fill", label: "已阻塞", colorKey: "red")),
+    (.done,       StatusInfo(icon: "checkmark.circle.fill",       label: "已完成", colorKey: "green")),
 ]
 
-/// 根据状态 key 获取对应的图标、标签、颜色信息
-func statusInfo(for key: String) -> StatusInfo {
-    STATUS_OPTIONS.first(where: { $0.key == key })?.info ?? STATUS_OPTIONS[0].info
+/// 根据状态获取对应的图标、标签、颜色信息
+func statusInfo(for status: TaskStatus) -> StatusInfo {
+    STATUS_OPTIONS.first(where: { $0.key == status })?.info ?? STATUS_OPTIONS[0].info
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -71,13 +78,13 @@ extension Animation {
 // ═══════════════════════════════════════════════════════════════════
 
 /// 将 "MM.DD" 格式的截止日期字符串转为 Date（智能推断年份）
-func deadlineToDate(_ dl: String) -> Date {
+func deadlineToDate(_ dl: String) -> Date? {
     let parts = dl.split(separator: ".").compactMap { Int($0) }
-    guard parts.count == 2 else { return Date() }
+    guard parts.count == 2 else { return nil }
     let cal = Calendar.current
     let now = Date()
     let year = cal.component(.year, from: now)
-    guard let date = cal.date(from: DateComponents(year: year, month: parts[0], day: parts[1])) else { return Date() }
+    guard let date = cal.date(from: DateComponents(year: year, month: parts[0], day: parts[1])) else { return nil }
     if let diff = cal.dateComponents([.month], from: date, to: now).month, diff > 6 {
         return cal.date(from: DateComponents(year: year + 1, month: parts[0], day: parts[1])) ?? date
     }
@@ -91,9 +98,9 @@ func dateToDeadline(_ date: Date) -> String {
 }
 
 /// 判断截止日期是否已过期
-func isDeadlineOverdue(_ dl: String) -> Bool {
-    guard !dl.isEmpty else { return false }
-    return deadlineToDate(dl) < Calendar.current.startOfDay(for: Date())
+func isDeadlineOverdue(_ dl: String, status: TaskStatus) -> Bool {
+    guard !dl.isEmpty, status != .done, let date = deadlineToDate(dl) else { return false }
+    return date < Calendar.current.startOfDay(for: Date())
 }
 
 /// 根据颜色 key 和当前主题返回对应 Color

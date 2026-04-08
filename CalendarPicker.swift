@@ -130,7 +130,7 @@ struct CalendarPicker: View {
         let isCurrentMonth: Bool
         let isToday: Bool
         let isSelected: Bool
-        var uniqueId: Int { isCurrentMonth ? number : (number + 100) }
+        var uniqueId: Int { isCurrentMonth ? number : (number + 200) }
     }
 
     var monthYearString: String {
