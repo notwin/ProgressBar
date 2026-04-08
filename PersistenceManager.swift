@@ -48,25 +48,32 @@ class PersistenceManager {
 
     /// 从磁盘加载数据，支持新旧格式自动迁移
     func load() -> LoadResult {
-        guard let data = try? Data(contentsOf: dataURL) else {
-            // 尝试从旧位置迁移数据
-            let oldURL = Self.localDir.appendingPathComponent("data.json")
-            if let oldData = try? Data(contentsOf: oldURL),
-               let oldTasks = try? JSONDecoder().decode([TaskItem].self, from: oldData) {
-                return .migrated(oldTasks)
-            }
-            return .empty
-        }
-        // 尝试解析新格式
-        if let appData = try? JSONDecoder().decode(AppData.self, from: data) {
+        // 先尝试主路径（iCloud 优先）
+        if let result = tryLoad(from: dataURL) {
             lastFileDate = fileModDate()
+            return result
+        }
+        // 主路径失败时，尝试本地备份
+        if Self.iCloudDir != nil {
+            let localURL = Self.localDir.appendingPathComponent("data.json")
+            if let result = tryLoad(from: localURL) {
+                onError?("iCloud 数据异常，已从本地备份恢复")
+                lastFileDate = fileModDate()
+                return result
+            }
+        }
+        return .empty
+    }
+
+    /// 尝试从指定路径加载数据
+    private func tryLoad(from url: URL) -> LoadResult? {
+        guard let data = try? Data(contentsOf: url), !data.isEmpty else { return nil }
+        if let appData = try? JSONDecoder().decode(AppData.self, from: data) {
             return .loaded(appData)
         }
-        // 尝试解析旧格式（纯任务数组）
         if let oldTasks = try? JSONDecoder().decode([TaskItem].self, from: data) {
             return .migrated(oldTasks)
         }
-        // 数据损坏
         return .corrupted(data)
     }
 
