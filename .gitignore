@@ -1,0 +1,20 @@
+# Build output
+jindu
+*.o
+*.d
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# App Bundle (installed app, not source)
+/AppBundle/Contents/MacOS/
+
+# IDE
+.swiftpm/
+*.xcodeproj/
+*.xcworkspace/
+.build/
+
+# Claude Code
+.omc/

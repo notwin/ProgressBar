@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>进度条</string>
+	<key>CFBundleExecutable</key>
+	<string>ProgressBar</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.notwin.progressbar</string>
+	<key>CFBundleName</key>
+	<string>进度条</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>4.2</string>
+	<key>CFBundleVersion</key>
+	<string>4.2</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSCalendarsUsageDescription</key>
+	<string>进度条需要访问您的日历，以便将有截止日期的任务同步到系统日历。</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>进度条需要完全访问您的日历，以便添加和删除任务日程。</string>
+</dict>
+</plist>
