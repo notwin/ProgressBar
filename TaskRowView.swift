@@ -26,6 +26,8 @@ struct TaskRowView: View {
     @State private var showDeadlinePicker = false
     @State private var pickedDate = Date()
     @State private var isDragging = false
+    @State private var editingLogDateId: String?
+    @State private var logPickedDate = Date()
 
     var theme: ThemeColors { state.theme }
     var info: StatusInfo { task.status.info }
@@ -191,8 +193,33 @@ struct TaskRowView: View {
             }
             ForEach(visibleLogs) { log in
                 HStack(alignment: .top, spacing: 10) {
-                    Text(log.date).font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .foregroundColor(theme.accent.opacity(0.8)).frame(minWidth: 52, alignment: .leading)
+                    Button(action: {
+                        logPickedDate = logDateToDate(log.date)
+                        editingLogDateId = log.id
+                    }) {
+                        Text(log.date).font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .foregroundColor(theme.accent.opacity(0.8))
+                    }
+                    .buttonStyle(.plain)
+                    .frame(minWidth: 52, alignment: .leading)
+                    .popover(isPresented: Binding(
+                        get: { editingLogDateId == log.id },
+                        set: { if !$0 { editingLogDateId = nil } }
+                    )) {
+                        CalendarPicker(
+                            selectedDate: $logPickedDate, theme: theme,
+                            onSelect: { date in
+                                let c = Calendar.current
+                                let dateStr = String(format: "%02d.%02d.%02d",
+                                    c.component(.year, from: date) % 100,
+                                    c.component(.month, from: date),
+                                    c.component(.day, from: date))
+                                state.updateLogDate(task.id, logId: log.id, newDate: dateStr)
+                                editingLogDateId = nil
+                            },
+                            onClear: nil
+                        )
+                    }
                     Text(log.text).font(.system(size: 13)).foregroundColor(theme.t2)
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer()
@@ -219,6 +246,14 @@ struct TaskRowView: View {
         }
         .padding(.leading, 44).padding(.trailing, 14).padding(.bottom, 8)
         .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    /// 将 "YY.MM.DD" 格式的日志日期转为 Date
+    func logDateToDate(_ d: String) -> Date {
+        let parts = d.split(separator: ".").compactMap { Int($0) }
+        guard parts.count == 3 else { return Date() }
+        let year = 2000 + parts[0]
+        return Calendar.current.date(from: DateComponents(year: year, month: parts[1], day: parts[2])) ?? Date()
     }
 
     func submitLog() {
