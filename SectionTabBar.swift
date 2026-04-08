@@ -28,7 +28,7 @@ struct SectionTabBar: View {
                         .textFieldStyle(.plain)
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(theme.t1)
-                        .frame(width: 80)
+                        .frame(minWidth: 80)
                         .padding(.horizontal, 12).padding(.vertical, 6)
                         .background(theme.accent.opacity(0.15))
                         .cornerRadius(8)

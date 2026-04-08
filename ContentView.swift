@@ -273,8 +273,8 @@ struct ContentView: View {
     /// 生成分区统计摘要
     func sectionSummary(_ s: TaskSection) -> String {
         let total = s.tasks.count + s.archived.count
-        let done = s.tasks.filter { $0.status == "done" }.count + s.archived.count
-        let active = s.tasks.filter { $0.status == "in_progress" || $0.status == "blocked" }.count
+        let done = s.tasks.filter { $0.status == .done }.count + s.archived.count
+        let active = s.tasks.filter { $0.status == .inProgress || $0.status == .blocked }.count
         return "\(s.tasks.count) 任务 · \(active) 进行中 · \(done)/\(total) 完成"
     }
 
