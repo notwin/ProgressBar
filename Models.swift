@@ -35,10 +35,25 @@ struct TaskSection: Identifiable, Codable, Equatable {
 }
 
 struct AppData: Codable {
-    var version: Int = 1
+    var version: Int
     var sections: [TaskSection]
     var themeId: String
     var activeSectionId: String
+
+    init(version: Int = 1, sections: [TaskSection], themeId: String, activeSectionId: String) {
+        self.version = version
+        self.sections = sections
+        self.themeId = themeId
+        self.activeSectionId = activeSectionId
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        version = try container.decodeIfPresent(Int.self, forKey: .version) ?? 1
+        sections = try container.decode([TaskSection].self, forKey: .sections)
+        themeId = try container.decode(String.self, forKey: .themeId)
+        activeSectionId = try container.decode(String.self, forKey: .activeSectionId)
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════
