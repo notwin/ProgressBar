@@ -62,8 +62,26 @@ struct SettingsView: View {
                     .padding(.horizontal, 20)
                 }
 
-                Button("前往下载") { updater.openDownloadPage() }
-                    .buttonStyle(.borderedProminent)
+                if updater.isDownloading {
+                    VStack(spacing: 6) {
+                        ProgressView(value: updater.downloadProgress)
+                            .frame(width: 200)
+                        Text("正在下载... \(Int(updater.downloadProgress * 100))%")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                } else {
+                    HStack(spacing: 12) {
+                        Button("自动更新") { updater.performUpdate() }
+                            .buttonStyle(.borderedProminent)
+                        Button("前往下载") { updater.openDownloadPage() }
+                    }
+                }
+                if let err = updater.updateError {
+                    Text(err)
+                        .font(.system(size: 11))
+                        .foregroundColor(.red)
+                }
             } else if updater.isChecking {
                 ProgressView()
                     .scaleEffect(0.8)
