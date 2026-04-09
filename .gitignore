@@ -16,7 +16,7 @@ jindu
 *.xcworkspace/
 .build/
 
-# Claude Code
+# IDE & Tools
 .omc/
 .claude/
 
