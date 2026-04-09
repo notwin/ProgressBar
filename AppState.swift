@@ -49,15 +49,17 @@ class AppState: ObservableObject {
         calendarManager.initializeIfAuthorized()
         syncedTaskIds = calendarManager.syncedTaskIds
         syncTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.checkRemoteChanges() }
+            let s = self
+            Task { @MainActor in s?.checkRemoteChanges() }
         }
         // 监听系统外观变化，自动模式下刷新主题
         appearanceObserver = DistributedNotificationCenter.default().addObserver(
             forName: Notification.Name("AppleInterfaceThemeChangedNotification"),
             object: nil, queue: .main
         ) { [weak self] _ in
+            let s = self
             Task { @MainActor in
-                if self?.themeId == "auto" { self?.objectWillChange.send() }
+                if s?.themeId == "auto" { s?.objectWillChange.send() }
             }
         }
     }
