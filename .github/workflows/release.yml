@@ -31,6 +31,7 @@ jobs:
             ThemePickerView.swift SettingsView.swift ExportCardView.swift ContentView.swift \
             ProgressBarApp.swift \
             -parse-as-library \
+            -O -whole-module-optimization \
             -framework SwiftUI \
             -framework AppKit \
             -framework QuartzCore \
@@ -55,7 +56,14 @@ jobs:
           done
 
           codesign --force --sign - "$APP"
-          zip -r "ProgressBar.app.zip" "$APP"
+
+          # 创建 DMG（含 Applications 快捷方式）
+          DMG_DIR="dmg_content"
+          mkdir -p "$DMG_DIR"
+          cp -R "$APP" "$DMG_DIR/"
+          ln -s /Applications "$DMG_DIR/Applications"
+          hdiutil create -volname "Progress" -srcfolder "$DMG_DIR" -ov -format UDZO "ProgressBar.dmg"
+          rm -rf "$DMG_DIR"
 
       - name: Generate release notes
         id: notes
@@ -80,4 +88,4 @@ jobs:
         with:
           name: v${{ steps.version.outputs.version }}
           body_path: /tmp/release_notes.md
-          files: ProgressBar.app.zip
+          files: ProgressBar.dmg

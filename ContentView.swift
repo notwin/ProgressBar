@@ -336,39 +336,41 @@ struct ContentView: View {
     /// 导出当前分区为 PNG 图片（离屏窗口 + cacheDisplay Retina 渲染）
     func exportAsImage(style: ExportCardView.ExportStyle = .desktop) {
         guard let sec = state.activeSection else { return }
-        let exportView = ExportCardView(section: sec, theme: state.theme, style: style)
-        let hostingView = NSHostingView(rootView: exportView)
-        let fittingSize = hostingView.fittingSize
-        hostingView.frame = NSRect(origin: .zero, size: fittingSize)
 
-        // 挂到离屏窗口，继承屏幕 Retina backing scale
-        let offscreenWindow = NSWindow(
-            contentRect: NSRect(x: -20000, y: -20000, width: fittingSize.width, height: fittingSize.height),
-            styleMask: .borderless,
-            backing: .buffered,
-            defer: false
-        )
-        offscreenWindow.contentView = hostingView
-        offscreenWindow.orderBack(nil)
-        hostingView.layoutSubtreeIfNeeded()
-        hostingView.display()
+        // autoreleasepool 确保离屏渲染资源及时释放
+        let pngData: Data? = autoreleasepool {
+            let exportView = ExportCardView(section: sec, theme: state.theme, style: style)
+            let hostingView = NSHostingView(rootView: exportView)
+            let fittingSize = hostingView.fittingSize
+            hostingView.frame = NSRect(origin: .zero, size: fittingSize)
 
-        guard let rep = hostingView.bitmapImageRepForCachingDisplay(in: hostingView.bounds) else {
-            offscreenWindow.orderOut(nil)
+            let offscreenWindow = NSWindow(
+                contentRect: NSRect(x: -20000, y: -20000, width: fittingSize.width, height: fittingSize.height),
+                styleMask: .borderless, backing: .buffered, defer: false
+            )
+            offscreenWindow.contentView = hostingView
+            offscreenWindow.orderBack(nil)
+            hostingView.layoutSubtreeIfNeeded()
+            hostingView.display()
+
+            guard let rep = hostingView.bitmapImageRepForCachingDisplay(in: hostingView.bounds) else {
+                offscreenWindow.close()
+                return nil
+            }
+            hostingView.cacheDisplay(in: hostingView.bounds, to: rep)
+            offscreenWindow.close()
+            return rep.representation(using: .png, properties: [:])
+        }
+
+        guard let png = pngData else {
             flashToast(L("toast.export_fail_image"))
             return
         }
-        hostingView.cacheDisplay(in: hostingView.bounds, to: rep)
-        offscreenWindow.orderOut(nil)
 
         let panel = NSSavePanel()
         panel.allowedContentTypes = [UTType.png]
         panel.nameFieldStringValue = "\(L("about.name"))-\(sec.name).png"
         if panel.runModal() == .OK, let url = panel.url {
-            guard let png = rep.representation(using: .png, properties: [:]) else {
-                flashToast(L("toast.export_fail_png"))
-                return
-            }
             do {
                 try png.write(to: url)
                 flashToast(L("toast.exported"))

@@ -48,7 +48,7 @@ class AppState: ObservableObject {
         load()
         calendarManager.initializeIfAuthorized()
         syncedTaskIds = calendarManager.syncedTaskIds
-        syncTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
+        syncTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
             let s = self
             Task { @MainActor in s?.checkRemoteChanges() }
         }

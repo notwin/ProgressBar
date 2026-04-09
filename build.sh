@@ -18,6 +18,7 @@ swiftc \
   ThemePickerView.swift SettingsView.swift ExportCardView.swift ContentView.swift \
   ProgressBarApp.swift \
   -parse-as-library \
+  -O -whole-module-optimization \
   -framework SwiftUI \
   -framework AppKit \
   -framework QuartzCore \

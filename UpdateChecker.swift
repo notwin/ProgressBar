@@ -85,7 +85,7 @@ class UpdateChecker: ObservableObject {
                 // 查找 .zip 资源下载地址
                 if let assets = json["assets"] as? [[String: Any]] {
                     for asset in assets {
-                        if let name = asset["name"] as? String, name.hasSuffix(".zip"),
+                        if let name = asset["name"] as? String, (name.hasSuffix(".dmg") || name.hasSuffix(".zip")),
                            let browserURL = asset["browser_download_url"] as? String {
                             s.assetURL = browserURL
                             break
@@ -98,6 +98,13 @@ class UpdateChecker: ObservableObject {
         }.resume()
     }
 
+    /// 取消正在进行的下载
+    func cancelDownload() {
+        downloadTask?.cancel()
+        downloadTask = nil
+        isDownloading = false
+    }
+
     /// 自动更新：下载 → 解压 → 替换 → 重启
     func performUpdate() {
         guard let urlString = assetURL, let url = URL(string: urlString) else {
@@ -105,6 +112,7 @@ class UpdateChecker: ObservableObject {
             return
         }
         guard !isDownloading else { return }
+        cancelDownload()
         isDownloading = true
         updateError = nil
         downloadProgress = 0
@@ -143,45 +151,75 @@ class UpdateChecker: ObservableObject {
         }
     }
 
-    /// 安装更新：解压 → 替换 → 重启
-    private func installUpdate(from zipURL: URL) {
+    /// 安装更新：解压/挂载 → 替换 → 重启
+    private func installUpdate(from fileURL: URL) {
         let fm = FileManager.default
         let tempDir = fm.temporaryDirectory.appendingPathComponent("ProgressBarUpdate-\(UUID().uuidString)")
+        let isDMG = fileURL.pathExtension.lowercased() == "dmg"
 
         do {
-            // 创建临时解压目录
             try fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
-            // 解压 zip
-            let unzipProcess = Process()
-            unzipProcess.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
-            unzipProcess.arguments = ["-o", zipURL.path, "-d", tempDir.path]
-            unzipProcess.standardOutput = FileHandle.nullDevice
-            unzipProcess.standardError = FileHandle.nullDevice
-            try unzipProcess.run()
-            unzipProcess.waitUntilExit()
+            var appSourceDir = tempDir
+            var mountPoint: String?
 
-            guard unzipProcess.terminationStatus == 0 else {
-                updateError = L("error.unzip")
-                try? fm.removeItem(at: tempDir)
-                return
+            if isDMG {
+                // 挂载 DMG
+                let mp = "/Volumes/Progress-\(UUID().uuidString.prefix(8))"
+                let attach = Process()
+                attach.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+                attach.arguments = ["attach", fileURL.path, "-mountpoint", mp, "-nobrowse", "-quiet"]
+                try attach.run()
+                attach.waitUntilExit()
+                guard attach.terminationStatus == 0 else {
+                    updateError = L("error.unzip")
+                    try? fm.removeItem(at: tempDir)
+                    return
+                }
+                mountPoint = mp
+                appSourceDir = URL(fileURLWithPath: mp)
+            } else {
+                // 解压 zip
+                let unzip = Process()
+                unzip.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
+                unzip.arguments = ["-o", fileURL.path, "-d", tempDir.path]
+                unzip.standardOutput = FileHandle.nullDevice
+                unzip.standardError = FileHandle.nullDevice
+                try unzip.run()
+                unzip.waitUntilExit()
+                guard unzip.terminationStatus == 0 else {
+                    updateError = L("error.unzip")
+                    try? fm.removeItem(at: tempDir)
+                    return
+                }
             }
 
-            // 找到解压后的 .app
-            let contents = try fm.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil)
+            // 找到 .app
+            let contents = try fm.contentsOfDirectory(at: appSourceDir, includingPropertiesForKeys: nil)
             guard let newApp = contents.first(where: { $0.pathExtension == "app" }) else {
                 updateError = L("error.no_app")
+                if let mp = mountPoint { detachDMG(mp) }
                 try? fm.removeItem(at: tempDir)
                 return
             }
 
-            // 用 shell 脚本完成替换和重启（因为当前进程需要先退出）
+            // 复制 app 到临时目录（DMG 是只读的）
+            let stagingApp: URL
+            if isDMG {
+                stagingApp = tempDir.appendingPathComponent(newApp.lastPathComponent)
+                try fm.copyItem(at: newApp, to: stagingApp)
+                detachDMG(mountPoint!)
+            } else {
+                stagingApp = newApp
+            }
+
+            // shell 脚本完成替换和重启
             let appDest = appPath
             let script = """
             #!/bin/bash
             sleep 1
             rm -rf "\(appDest)"
-            cp -R "\(newApp.path)" "\(appDest)"
+            cp -R "\(stagingApp.path)" "\(appDest)"
             codesign --force --sign - "\(appDest)"
             open -a "\(appDest)"
             rm -rf "\(tempDir.path)"
@@ -198,13 +236,23 @@ class UpdateChecker: ObservableObject {
             process.standardError = FileHandle.nullDevice
             try process.run()
 
-            // 退出当前应用
             NSApp.terminate(nil)
 
         } catch {
             updateError = L("error.install_%@", error.localizedDescription)
             try? fm.removeItem(at: tempDir)
         }
+    }
+
+    /// 卸载 DMG
+    private func detachDMG(_ mountPoint: String) {
+        let detach = Process()
+        detach.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+        detach.arguments = ["detach", mountPoint, "-quiet"]
+        detach.standardOutput = FileHandle.nullDevice
+        detach.standardError = FileHandle.nullDevice
+        try? detach.run()
+        detach.waitUntilExit()
     }
 
     /// 比较版本号（语义化版本）

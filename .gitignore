@@ -26,3 +26,4 @@ mcp-server/dist/
 
 # Release artifacts
 *.app.zip
+*.dmg

@@ -29,17 +29,21 @@ final class SettingsWindowController {
         w.center()
         w.isReleasedWhenClosed = false
 
+        // 清理旧的事件监视器
+        if let monitor = keyMonitor {
+            NSEvent.removeMonitor(monitor)
+            keyMonitor = nil
+        }
+
         // ⌘W 关闭设置窗口
-        if keyMonitor == nil {
-            keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-                if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "w" {
-                    if let w = self?.window, w.isKeyWindow {
-                        w.close()
-                        return nil
-                    }
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak w] event in
+            if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "w" {
+                if w?.isKeyWindow == true {
+                    w?.close()
+                    return nil
                 }
-                return event
             }
+            return event
         }
 
         w.makeKeyAndOrderFront(nil)
