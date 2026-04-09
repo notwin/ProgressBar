@@ -127,14 +127,47 @@ struct SettingsView: View {
 
     var theme: ThemeColors { state.theme }
 
+    @Environment(\.dismiss) private var dismiss
+
     var body: some View {
-        TabView(selection: $selectedTab) {
-            appearanceTab.tabItem { Label(L("settings.appearance"), systemImage: "paintbrush") }.tag(SettingsTab.appearance)
-            languageTab.tabItem { Label(L("settings.language"), systemImage: "globe") }.tag(SettingsTab.language)
-            updateTab.tabItem { Label(L("settings.update"), systemImage: "arrow.triangle.2.circlepath") }.tag(SettingsTab.update)
-            aboutTab.tabItem { Label(L("settings.about"), systemImage: "info.circle") }.tag(SettingsTab.about)
+        VStack(spacing: 0) {
+            // 顶部标题栏 + 关闭按钮
+            HStack {
+                Text(L("settings.title")).font(.system(size: 15, weight: .semibold))
+                Spacer()
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(.secondary.opacity(0.5))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 8)
+
+            // Tab 选择器
+            Picker("", selection: $selectedTab) {
+                Text(L("settings.appearance")).tag(SettingsTab.appearance)
+                Text(L("settings.language")).tag(SettingsTab.language)
+                Text(L("settings.update")).tag(SettingsTab.update)
+                Text(L("settings.about")).tag(SettingsTab.about)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 16).padding(.bottom, 8)
+
+            Divider()
+
+            // Tab 内容
+            Group {
+                switch selectedTab {
+                case .appearance: appearanceTab
+                case .language: languageTab
+                case .update: updateTab
+                case .about: aboutTab
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(width: 420, height: 400)
     }
 
     // ── 外观 ──

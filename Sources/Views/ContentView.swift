@@ -193,7 +193,8 @@ struct ContentView: View {
                 // 更新提示按钮
                 if updater.hasUpdate {
                     Button(action: {
-                        SettingsWindowController.shared.open(state: state, updater: updater, tab: .update)
+                        state.settingsTab = .update
+                        state.showSettings = true
                     }) {
                         Image(systemName: "arrow.down.circle.fill")
                             .font(.system(size: 14, weight: .medium))

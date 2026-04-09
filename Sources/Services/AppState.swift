@@ -20,6 +20,8 @@ class AppState: ObservableObject {
     @Published var triggerCalendarSync: Bool = false
     @Published var saveError: String?
     @Published var syncedTaskIds: Set<String> = []
+    @Published var showSettings: Bool = false
+    @Published var settingsTab: SettingsTab = .appearance
 
     let calendarManager = CalendarManager()
     let persistence = PersistenceManager()
