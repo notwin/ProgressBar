@@ -37,7 +37,7 @@ struct TaskRowView: View {
             headerRow
             if expanded { logSection }
         }
-        .background(hovered ? theme.surface : Color.clear)
+        .background((hovered ? theme.surface : Color.clear).animation(nil, value: hovered))
         .cornerRadius(10)
         .opacity(isDragging ? 0.5 : 1.0)
         .onDrag {
@@ -45,7 +45,7 @@ struct TaskRowView: View {
             return NSItemProvider(object: task.id as NSString)
         }
         .onDrop(of: [.text], delegate: TaskDropDelegate(taskId: task.id, state: state, isDragging: $isDragging))
-        .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { hovered = h } }
+        .onHover { hovered = $0 }
         .alert(L("task.archive_title"), isPresented: $showCompleteAlert) {
             Button(L("cancel"), role: .cancel) {}
             Button(L("task.archive")) { state.completeTask(task.id) }.keyboardShortcut(.defaultAction)
@@ -101,7 +101,7 @@ struct TaskRowView: View {
                 hoverBtn("plus", theme.accent) { withAnimation(.appFast) { expanded = true; showLogInput = true } }
                 hoverBtn("archivebox", theme.t3) { showCompleteAlert = true }
                 hoverBtn("trash", theme.red) { showDeleteAlert = true }
-            }.opacity(hovered ? 1 : 0)
+            }.opacity(hovered ? 1 : 0).animation(nil, value: hovered)
 
             deadlineView
 

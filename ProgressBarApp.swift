@@ -27,6 +27,16 @@ final class SettingsWindowController {
         w.contentView = hostingView
         w.center()
         w.isReleasedWhenClosed = false
+        // 支持 ⌘W 关闭窗口
+        let closeItem = NSMenuItem(title: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        closeItem.keyEquivalentModifierMask = .command
+        if let fileMenu = NSApp.mainMenu?.item(withTitle: "File")?.submenu ??
+           NSApp.mainMenu?.items.first(where: { $0.submenu?.items.contains(where: { $0.keyEquivalent == "n" }) ?? false })?.submenu {
+            if !fileMenu.items.contains(where: { $0.keyEquivalent == "w" }) {
+                fileMenu.addItem(NSMenuItem.separator())
+                fileMenu.addItem(closeItem)
+            }
+        }
         w.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         window = w
