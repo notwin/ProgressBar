@@ -11,6 +11,7 @@ class UpdateChecker: ObservableObject {
     @Published var latestVersion: String?
     @Published var downloadURL: String?
     @Published var assetURL: String?
+    @Published var assetName: String?
     @Published var releaseNotes: String?
     @Published var isChecking = false
     @Published var isDownloading = false
@@ -88,6 +89,7 @@ class UpdateChecker: ObservableObject {
                         if let name = asset["name"] as? String, (name.hasSuffix(".dmg") || name.hasSuffix(".zip")),
                            let browserURL = asset["browser_download_url"] as? String {
                             s.assetURL = browserURL
+                            s.assetName = name
                             break
                         }
                     }
@@ -136,7 +138,11 @@ class UpdateChecker: ObservableObject {
                     s.updateError = L("error.download_no_file")
                     return
                 }
-                s.installUpdate(from: tempURL)
+                // 重命名临时文件保留正确扩展名（DMG 挂载需要）
+                let ext = s.assetName.flatMap { URL(string: $0)?.pathExtension ?? $0.components(separatedBy: ".").last } ?? "zip"
+                let dest = tempURL.deletingLastPathComponent().appendingPathComponent("update.\(ext)")
+                try? FileManager.default.moveItem(at: tempURL, to: dest)
+                s.installUpdate(from: dest)
             }
         }
         downloadTask = task
