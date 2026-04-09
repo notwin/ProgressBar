@@ -38,7 +38,7 @@ jobs:
 
       - name: Package app bundle
         run: |
-          APP="进度条.app"
+          APP="Progress.app"
           mkdir -p "$APP/Contents/MacOS"
           mkdir -p "$APP/Contents/Resources"
           cp AppBundle/Contents/Info.plist "$APP/Contents/Info.plist"

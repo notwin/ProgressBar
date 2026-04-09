@@ -5,7 +5,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-APP_PATH="/Applications/进度条.app"
+APP_PATH="/Applications/Progress.app"
 
 echo "==> 编译 main.swift ..."
 cd "$SCRIPT_DIR"
@@ -27,11 +27,15 @@ swiftc \
 
 echo "==> 关闭正在运行的应用 ..."
 killall 'ProgressBar' 2>/dev/null || true
-killall '进度条' 2>/dev/null || true
 sleep 1
 killall -9 'ProgressBar' 2>/dev/null || true
-killall -9 '进度条' 2>/dev/null || true
 sleep 1
+
+# 清理旧版中文名 app（迁移用）
+if [ -d "/Applications/进度条.app" ] && [ "$APP_PATH" != "/Applications/进度条.app" ]; then
+  echo "    清理旧版「进度条.app」..."
+  rm -rf "/Applications/进度条.app"
+fi
 
 echo "==> 部署到 $APP_PATH ..."
 # 如果 app bundle 不存在，从模板创建
@@ -58,6 +62,6 @@ codesign --force --sign - "$APP_PATH"
 
 echo "==> 启动应用 ..."
 sleep 1
-open -a '进度条'
+open -a 'Progress'
 
 echo "==> 完成！"
