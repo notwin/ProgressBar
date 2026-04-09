@@ -368,7 +368,12 @@ class AppState: ObservableObject {
             let icon = icons[t.status] ?? "◻️"
             let dl = t.deadline.isEmpty ? "" : "  → \(deadlineDisplay(t.deadline))"
             out += "\(i+1). \(icon) \(t.title)\(dl)\n"
-            for l in t.logs { out += "    \(l.date)  \(l.text)\n" }
+            for l in t.logs {
+                let d = l.date.split(separator: ".").count == 3
+                    ? l.date.split(separator: ".").dropFirst().joined(separator: ".")
+                    : l.date
+                out += "    \(d)  \(l.text)\n"
+            }
             if !t.logs.isEmpty { out += "\n" }
         }
         return out

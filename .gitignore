@@ -19,3 +19,7 @@ jindu
 # Claude Code
 .omc/
 .claude/
+
+# MCP Server
+mcp-server/node_modules/
+mcp-server/dist/
