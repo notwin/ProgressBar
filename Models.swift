@@ -80,7 +80,7 @@ extension TaskStatus {
         switch self {
         case .pending:    return StatusInfo(icon: "circle",                      label: "待开始", colorKey: .t3)
         case .inProgress: return StatusInfo(icon: "circle.fill",                 label: "进行中", colorKey: .accent)
-        case .blocked:    return StatusInfo(icon: "exclamationmark.circle.fill", label: "已阻塞", colorKey: .red)
+        case .blocked:    return StatusInfo(icon: "pause.circle.fill",           label: "已阻塞", colorKey: .orange)
         case .done:       return StatusInfo(icon: "checkmark.circle.fill",       label: "已完成", colorKey: .green)
         }
     }

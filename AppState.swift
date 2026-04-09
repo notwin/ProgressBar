@@ -358,13 +358,17 @@ class AppState: ObservableObject {
     /// 导出当前分区为纯文本格式
     func exportText() -> String {
         guard let section = activeSection else { return "" }
-        let icons: [TaskStatus: String] = [.pending: "⚪", .inProgress: "🔵", .blocked: "🔴", .done: "✅"]
-        var out = "进度条 · \(section.name)\n" + String(repeating: "─", count: 30) + "\n\n"
+        let icons: [TaskStatus: String] = [.pending: "⏹️", .inProgress: "▶️", .blocked: "⏸️", .done: "✅"]
+        let total = section.tasks.count
+        let done = section.tasks.filter { $0.status == .done }.count
+        let active = section.tasks.filter { $0.status == .inProgress || $0.status == .blocked }.count
+
+        var out = "📊 \(section.name)  \(done)/\(total) 完成 · \(active) 进行中\n\n"
         for (i, t) in section.tasks.enumerated() {
-            let icon = icons[t.status] ?? "○"
+            let icon = icons[t.status] ?? "◻️"
             let dl = t.deadline.isEmpty ? "" : "  → \(deadlineDisplay(t.deadline))"
             out += "\(i+1). \(icon) \(t.title)\(dl)\n"
-            for l in t.logs { out += "   \(l.date)  \(l.text)\n" }
+            for l in t.logs { out += "    \(l.date)  \(l.text)\n" }
             if !t.logs.isEmpty { out += "\n" }
         }
         return out

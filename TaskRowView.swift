@@ -265,11 +265,27 @@ struct TaskRowView: View {
 
     @ViewBuilder
     func hoverBtn(_ icon: String, _ color: Color, action: @escaping () -> Void) -> some View {
+        HoverScaleButton(icon: icon, color: color, action: action)
+    }
+}
+
+/// hover 放大效果按钮
+private struct HoverScaleButton: View {
+    let icon: String
+    let color: Color
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
         Button(action: action) {
             Image(systemName: icon).font(.system(size: 13, weight: .medium))
                 .foregroundColor(color).frame(width: 28, height: 28)
+                .scaleEffect(isHovered ? 1.6 : 1.0)
+                .animation(.spring(response: 0.2, dampingFraction: 0.6), value: isHovered)
                 .contentShape(Rectangle())
-        }.buttonStyle(.plain)
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
     }
 }
 
