@@ -19,6 +19,7 @@ final class SettingsWindowController {
         let size = NSSize(width: 420, height: 300)
         let view = SettingsView(updater: updater, selectedTab: tab).environmentObject(state)
         let hostingView = NSHostingView(rootView: view)
+        hostingView.autoresizingMask = [.width, .height]
         let w = NSWindow(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.titled, .closable],
