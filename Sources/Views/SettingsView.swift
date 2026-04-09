@@ -134,21 +134,25 @@ struct SettingsView: View {
             updateTab.tabItem { Label(L("settings.update"), systemImage: "arrow.triangle.2.circlepath") }.tag(SettingsTab.update)
             aboutTab.tabItem { Label(L("settings.about"), systemImage: "info.circle") }.tag(SettingsTab.about)
         }
-        .frame(width: 420, height: 360)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // ── 外观 ──
     private var appearanceTab: some View {
         ScrollView {
             ThemePickerView().environmentObject(state)
+                .frame(maxWidth: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // ── 语言 ──
     private var languageTab: some View {
         ScrollView {
             LanguagePickerView()
+                .frame(maxWidth: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // ── 更新 ──
