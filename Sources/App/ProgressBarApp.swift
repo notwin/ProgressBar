@@ -16,10 +16,12 @@ final class SettingsWindowController {
         if let w = window, w.isVisible {
             w.close()
         }
-        let size = NSSize(width: 420, height: 360)
+        let width: CGFloat = 420
         let view = SettingsView(updater: updater, selectedTab: tab).environmentObject(state)
         let hostingView = NSHostingView(rootView: view)
-        hostingView.frame = NSRect(origin: .zero, size: size)
+        // 让 SwiftUI 计算最佳高度
+        let fittingHeight = max(hostingView.fittingSize.height, 280)
+        let size = NSSize(width: width, height: fittingHeight)
         let w = NSWindow(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.titled, .closable],
@@ -28,9 +30,8 @@ final class SettingsWindowController {
         )
         w.title = L("settings.title")
         w.contentView = hostingView
-        w.contentMinSize = size
-        w.contentMaxSize = size
-        // 禁用窗口状态恢复（防止自动更新后 macOS 恢复旧尺寸）
+        w.contentMinSize = NSSize(width: width, height: 280)
+        w.contentMaxSize = NSSize(width: width, height: fittingHeight)
         w.restorationClass = nil
         w.invalidateRestorableState()
         w.isReleasedWhenClosed = false
