@@ -17,7 +17,6 @@ private let languages: [LanguageOption] = [
     LanguageOption(id: "auto", name: "Auto"),
     LanguageOption(id: "en", name: "English (United States)"),
     LanguageOption(id: "fr", name: "Français (France)"),
-    LanguageOption(id: "de", name: "Deutsch (Deutschland)"),
     LanguageOption(id: "hi", name: "हिन्दी (भारत)"),
     LanguageOption(id: "id", name: "Indonesia (Indonesia)"),
     LanguageOption(id: "it", name: "Italiano (Italia)"),
@@ -30,7 +29,7 @@ private let languages: [LanguageOption] = [
     LanguageOption(id: "zh-Hant", name: "繁體中文"),
 ]
 
-private struct LanguageRow: View {
+private struct LanguageCell: View {
     let lang: LanguageOption
     let isActive: Bool
     let action: () -> Void
@@ -38,21 +37,23 @@ private struct LanguageRow: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 10) {
-                Text(lang.name).font(.system(size: 14, weight: isActive ? .semibold : .medium))
-                Spacer()
+            HStack(spacing: 0) {
+                Text(lang.name)
+                    .font(.system(size: 13, weight: isActive ? .semibold : .regular))
+                    .lineLimit(1)
+                Spacer(minLength: 4)
                 if isActive {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 12, weight: .bold))
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundColor(.accentColor)
                 }
             }
-            .padding(.horizontal, 10).padding(.vertical, 8)
+            .padding(.horizontal, 10).padding(.vertical, 7)
             .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 6)
                     .fill(isActive ? Color.accentColor.opacity(0.08) :
-                          (isHovered ? Color.secondary.opacity(0.08) : Color.clear))
+                          (isHovered ? Color.secondary.opacity(0.06) : Color.clear))
             )
         }
         .buttonStyle(.plain)
@@ -66,7 +67,7 @@ struct LanguagePickerView: View {
     @State private var currentLang: String = {
         if let langs = UserDefaults.standard.array(forKey: "AppleLanguages") as? [String],
            let first = langs.first {
-            let supported = ["zh-Hant", "zh-Hans", "en", "fr", "de", "hi", "id", "it", "ja", "ko", "pt-BR", "es-419", "es"]
+            let supported = ["zh-Hant", "zh-Hans", "en", "fr", "hi", "id", "it", "ja", "ko", "pt-BR", "es-419", "es"]
             // exact match first
             if supported.contains(first) { return first }
             // prefix match
@@ -78,23 +79,27 @@ struct LanguagePickerView: View {
     }()
     @State private var showRestart = false
 
+    private let columns = [GridItem(.flexible(), spacing: 4), GridItem(.flexible(), spacing: 4)]
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             Text(L("settings.language"))
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(.secondary)
                 .textCase(.uppercase).tracking(0.5)
 
-            ForEach(languages) { lang in
-                LanguageRow(lang: lang, isActive: lang.id == currentLang) {
-                    if lang.id == currentLang { return }
-                    currentLang = lang.id
-                    if lang.id == "auto" {
-                        UserDefaults.standard.removeObject(forKey: "AppleLanguages")
-                    } else {
-                        UserDefaults.standard.set([lang.id], forKey: "AppleLanguages")
+            LazyVGrid(columns: columns, spacing: 4) {
+                ForEach(languages) { lang in
+                    LanguageCell(lang: lang, isActive: lang.id == currentLang) {
+                        if lang.id == currentLang { return }
+                        currentLang = lang.id
+                        if lang.id == "auto" {
+                            UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+                        } else {
+                            UserDefaults.standard.set([lang.id], forKey: "AppleLanguages")
+                        }
+                        showRestart = true
                     }
-                    showRestart = true
                 }
             }
 
@@ -105,11 +110,12 @@ struct LanguagePickerView: View {
                         .foregroundColor(.orange)
                     Spacer()
                     Button(L("settings.restart")) {
-                        let url = URL(fileURLWithPath: Bundle.main.bundlePath)
-                        NSWorkspace.shared.open(url)
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            NSApp.terminate(nil)
-                        }
+                        let appPath = Bundle.main.bundlePath
+                        let task = Process()
+                        task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+                        task.arguments = ["-n", appPath]
+                        try? task.run()
+                        exit(0)
                     }
                     .font(.system(size: 11))
                 }
@@ -134,7 +140,7 @@ struct SettingsView: View {
             updateTab.tabItem { Label(L("settings.update"), systemImage: "arrow.triangle.2.circlepath") }.tag(SettingsTab.update)
             aboutTab.tabItem { Label(L("settings.about"), systemImage: "info.circle") }.tag(SettingsTab.about)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(width: 600, height: 350)
     }
 
     // ── 外观 ──

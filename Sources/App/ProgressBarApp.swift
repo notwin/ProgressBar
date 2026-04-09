@@ -16,7 +16,7 @@ final class SettingsWindowController {
         if let w = window, w.isVisible {
             w.close()
         }
-        let size = NSSize(width: 420, height: 350)
+        let size = NSSize(width: 600, height: 350)
         let view = SettingsView(updater: updater, selectedTab: tab).environmentObject(state)
         let hostingView = NSHostingView(rootView: view)
         hostingView.autoresizingMask = [.width, .height]
