@@ -78,7 +78,8 @@
 **体验**
 - 7 套差异化主题（支持跟随系统深浅色）
 - iCloud 多设备同步 + 本地自动备份
-- 全套键盘快捷键，高效操作
+- 全套键盘快捷键，⌘1~9 快速切换分区
+- 应用内自动更新，启动时静默检查新版本
 - MCP 协议集成，AI 助手可直接管理任务
 
 </td>
@@ -98,6 +99,7 @@
 | 新建任务 | `⌘N` | 复制到剪贴板 | `⇧⌘C` |
 | 搜索任务 | `⌘F` | 导出图片 | `⌘E` |
 | 同步日历 | `⇧⌘S` | 快捷键一览 | `⌘/` |
+| 设置 | `⌘,` | 切换分区 | `⌘1`~`⌘9` |
 
 <br>
 
@@ -153,9 +155,11 @@ ProgressBar/
 ├── AppState.swift            # 状态管理 · CRUD · 日历同步
 ├── PersistenceManager.swift  # 持久化 · iCloud 同步
 ├── CalendarManager.swift     # 系统日历集成
+├── UpdateChecker.swift       # GitHub Releases 自动更新
 ├── ContentView.swift         # 主视图布局
 ├── TaskRowView.swift         # 任务行视图
 ├── SectionTabBar.swift       # 分区标签栏
+├── SettingsView.swift        # 设置窗口（外观·更新·关于）
 ├── ExportCardView.swift      # 导出渲染
 ├── build.sh                  # 一键编译部署
 └── mcp-server/               # MCP Server
