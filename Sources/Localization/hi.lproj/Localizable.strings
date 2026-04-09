@@ -118,7 +118,11 @@
 "update.latest" = "अद्यतित है";
 "update.last_check_%@" = "अंतिम जाँच: %@";
 "update.check" = "अपडेट जाँचें";
-"update.new_version_%@" = "नया संस्करण v%@ उपलब्ध है";
+"update.new_version_%@" = "नया संस्करण v%@ उपलब्ध";
+"update.installing" = "अपडेट इंस्टॉल हो रहा है...";
+"update.restart_soon" = "पूरा होने पर स्वचालित रूप से पुनः आरंभ होगा";
+"update.downloading" = "अपडेट डाउनलोड हो रहा है";
+
 
 /* ── About ── */
 "about.name" = "Progress";

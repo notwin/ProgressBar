@@ -119,6 +119,10 @@
 "update.last_check_%@" = "Última comprobación: %@";
 "update.check" = "Buscar actualizaciones";
 "update.new_version_%@" = "Nueva versión v%@ disponible";
+"update.installing" = "Instalando actualización...";
+"update.restart_soon" = "Se reiniciará automáticamente al finalizar";
+"update.downloading" = "Descargando actualización";
+
 
 /* ── About ── */
 "about.name" = "Progress";

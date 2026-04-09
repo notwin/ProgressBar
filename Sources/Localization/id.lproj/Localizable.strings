@@ -119,6 +119,10 @@
 "update.last_check_%@" = "Pemeriksaan terakhir: %@";
 "update.check" = "Periksa Pembaruan";
 "update.new_version_%@" = "Versi baru v%@ tersedia";
+"update.installing" = "Menginstal pembaruan...";
+"update.restart_soon" = "Akan dimulai ulang secara otomatis setelah selesai";
+"update.downloading" = "Mengunduh pembaruan";
+
 
 /* ── About ── */
 "about.name" = "Progress";

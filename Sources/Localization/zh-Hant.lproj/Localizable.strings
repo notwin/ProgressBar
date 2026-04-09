@@ -119,6 +119,10 @@
 "update.last_check_%@" = "上次檢查: %@";
 "update.check" = "檢查更新";
 "update.new_version_%@" = "發現新版本 v%@";
+"update.installing" = "正在安裝更新...";
+"update.restart_soon" = "安裝完成後將自動重啟";
+"update.downloading" = "正在下載更新";
+
 
 /* ── 關於 ── */
 "about.name" = "進度條";

@@ -118,7 +118,11 @@
 "update.latest" = "최신 상태입니다";
 "update.last_check_%@" = "마지막 확인: %@";
 "update.check" = "업데이트 확인";
-"update.new_version_%@" = "새 버전 v%@을(를) 사용할 수 있습니다";
+"update.new_version_%@" = "새 버전 v%@ 사용 가능";
+"update.installing" = "업데이트 설치 중...";
+"update.restart_soon" = "완료 후 자동으로 재시작됩니다";
+"update.downloading" = "업데이트 다운로드 중";
+
 
 /* ── About ── */
 "about.name" = "Progress";

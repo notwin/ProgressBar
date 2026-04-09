@@ -127,47 +127,14 @@ struct SettingsView: View {
 
     var theme: ThemeColors { state.theme }
 
-    @Environment(\.dismiss) private var dismiss
-
     var body: some View {
-        VStack(spacing: 0) {
-            // 顶部标题栏 + 关闭按钮
-            HStack {
-                Text(L("settings.title")).font(.system(size: 15, weight: .semibold))
-                Spacer()
-                Button(action: { dismiss() }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 18))
-                        .foregroundColor(.secondary.opacity(0.5))
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 8)
-
-            // Tab 选择器
-            Picker("", selection: $selectedTab) {
-                Text(L("settings.appearance")).tag(SettingsTab.appearance)
-                Text(L("settings.language")).tag(SettingsTab.language)
-                Text(L("settings.update")).tag(SettingsTab.update)
-                Text(L("settings.about")).tag(SettingsTab.about)
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 16).padding(.bottom, 8)
-
-            Divider()
-
-            // Tab 内容
-            Group {
-                switch selectedTab {
-                case .appearance: appearanceTab
-                case .language: languageTab
-                case .update: updateTab
-                case .about: aboutTab
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        TabView(selection: $selectedTab) {
+            appearanceTab.tabItem { Label(L("settings.appearance"), systemImage: "paintbrush") }.tag(SettingsTab.appearance)
+            languageTab.tabItem { Label(L("settings.language"), systemImage: "globe") }.tag(SettingsTab.language)
+            updateTab.tabItem { Label(L("settings.update"), systemImage: "arrow.triangle.2.circlepath") }.tag(SettingsTab.update)
+            aboutTab.tabItem { Label(L("settings.about"), systemImage: "info.circle") }.tag(SettingsTab.about)
         }
-        .frame(width: 420, height: 400)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // ── 外观 ──
@@ -190,88 +157,128 @@ struct SettingsView: View {
 
     // ── 更新 ──
     private var updateTab: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 0) {
             Spacer()
 
-            Image(systemName: updater.hasUpdate ? "arrow.down.circle" : "checkmark.circle")
-                .font(.system(size: 36, weight: .light))
-                .foregroundColor(updater.hasUpdate ? .orange : .green)
-
-            if updater.hasUpdate {
-                Text(L("update.found_%@", updater.latestVersion ?? ""))
-                    .font(.system(size: 16, weight: .semibold))
-                Text(L("update.current_%@", updater.currentVersion))
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-
-                if let notes = updater.releaseNotes, !notes.isEmpty {
-                    ScrollView {
-                        Text(notes)
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(10)
-                    }
-                    .frame(maxHeight: 80)
-                    .background(Color.secondary.opacity(0.08))
-                    .cornerRadius(8)
-                    .padding(.horizontal, 20)
+            if updater.isInstalling {
+                // 安装中 → 即将重启
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .scaleEffect(1.2)
+                    Text(L("update.installing"))
+                        .font(.system(size: 16, weight: .semibold))
+                    Text(L("update.restart_soon"))
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
                 }
-
-                if updater.isDownloading {
-                    VStack(spacing: 6) {
-                        ProgressView(value: updater.downloadProgress)
-                            .frame(width: 200)
-                        Text(L("update.downloading_%d", Int(updater.downloadProgress * 100)))
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
+            } else if updater.isDownloading {
+                // 下载中
+                VStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .stroke(Color.secondary.opacity(0.15), lineWidth: 6)
+                            .frame(width: 60, height: 60)
+                        Circle()
+                            .trim(from: 0, to: updater.downloadProgress)
+                            .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                            .frame(width: 60, height: 60)
+                            .rotationEffect(.degrees(-90))
+                            .animation(.easeOut(duration: 0.3), value: updater.downloadProgress)
+                        Text("\(Int(updater.downloadProgress * 100))%")
+                            .font(.system(size: 14, weight: .bold, design: .monospaced))
                     }
-                } else {
+                    Text(L("update.downloading"))
+                        .font(.system(size: 14, weight: .medium))
+                    Text("v\(updater.latestVersion ?? "")")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+            } else if updater.hasUpdate {
+                // 发现新版本
+                VStack(spacing: 12) {
+                    Image(systemName: "arrow.down.circle")
+                        .font(.system(size: 36, weight: .light))
+                        .foregroundColor(.orange)
+                    Text(L("update.found_%@", updater.latestVersion ?? ""))
+                        .font(.system(size: 16, weight: .semibold))
+                    Text(L("update.current_%@", updater.currentVersion))
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+
+                    if let notes = updater.releaseNotes, !notes.isEmpty {
+                        ScrollView {
+                            Text(notes)
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(10)
+                        }
+                        .frame(maxHeight: 70)
+                        .background(Color.secondary.opacity(0.06))
+                        .cornerRadius(8)
+                        .padding(.horizontal, 20)
+                    }
+
                     HStack(spacing: 12) {
                         Button(L("update.auto")) { updater.performUpdate() }
                             .buttonStyle(.borderedProminent)
                         Button(L("update.download")) { updater.openDownloadPage() }
                     }
+                    .padding(.top, 4)
                 }
                 if let err = updater.updateError {
-                    Text(err)
-                        .font(.system(size: 11))
-                        .foregroundColor(.red)
+                    Text(err).font(.system(size: 11)).foregroundColor(.red).padding(.top, 4)
                 }
             } else if updater.isChecking {
-                ProgressView()
-                    .scaleEffect(0.8)
-                Text(L("update.checking"))
-                    .font(.system(size: 14))
-                    .foregroundColor(.secondary)
+                // 检查中
+                VStack(spacing: 12) {
+                    ProgressView()
+                    Text(L("update.checking"))
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                }
             } else if let error = updater.checkError {
-                Text(L("update.failed"))
-                    .font(.system(size: 16, weight: .semibold))
-                Text(error)
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20)
-                Button(L("update.retry")) { updater.checkForUpdates() }
+                // 检查失败
+                VStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 30))
+                        .foregroundColor(.orange)
+                    Text(L("update.failed"))
+                        .font(.system(size: 16, weight: .semibold))
+                    Text(error)
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                    Button(L("update.retry")) { updater.checkForUpdates() }
+                }
+                .padding(.horizontal, 20)
             } else {
-                Text(L("update.latest"))
-                    .font(.system(size: 16, weight: .semibold))
-                Text("v\(updater.currentVersion)")
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
+                // 已是最新
+                VStack(spacing: 12) {
+                    Image(systemName: "checkmark.circle")
+                        .font(.system(size: 36, weight: .light))
+                        .foregroundColor(.green)
+                    Text(L("update.latest"))
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("v\(updater.currentVersion)")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
             }
 
             Spacer()
 
-            HStack {
-                if let date = updater.lastCheckDate {
-                    Text(L("update.last_check_%@", date.formatted(date: .abbreviated, time: .shortened)))
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+            if !updater.isDownloading && !updater.isInstalling {
+                HStack {
+                    if let date = updater.lastCheckDate {
+                        Text(L("update.last_check_%@", date.formatted(date: .abbreviated, time: .shortened)))
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Button(L("update.check")) { updater.checkForUpdates() }
+                        .disabled(updater.isChecking)
                 }
-                Spacer()
-                Button(L("update.check")) { updater.checkForUpdates() }
-                    .disabled(updater.isChecking)
             }
         }
         .padding(20)

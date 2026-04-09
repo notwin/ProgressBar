@@ -15,6 +15,7 @@ class UpdateChecker: ObservableObject {
     @Published var releaseNotes: String?
     @Published var isChecking = false
     @Published var isDownloading = false
+    @Published var isInstalling = false
     @Published var downloadProgress: Double = 0
     @Published var hasUpdate = false
     @Published var lastCheckDate: Date?
@@ -156,6 +157,7 @@ class UpdateChecker: ObservableObject {
 
     /// 安装更新：解压/挂载 → 替换 → 重启
     private func installUpdate(from fileURL: URL, isDMG: Bool) {
+        isInstalling = true
         let fm = FileManager.default
         let tempDir = fm.temporaryDirectory.appendingPathComponent("ProgressBarUpdate-\(UUID().uuidString)")
 

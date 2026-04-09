@@ -119,6 +119,10 @@
 "update.last_check_%@" = "最終確認：%@";
 "update.check" = "アップデートを確認";
 "update.new_version_%@" = "新しいバージョン v%@ が利用可能です";
+"update.installing" = "アップデートをインストール中...";
+"update.restart_soon" = "完了後に自動的に再起動します";
+"update.downloading" = "アップデートをダウンロード中";
+
 
 /* ── About ── */
 "about.name" = "Progress";
