@@ -144,7 +144,7 @@ Supported operations: list sections, list tasks, create tasks, update status, ad
 | **Calendar** | EventKit |
 | **Build** | `swiftc` CLI compilation, no Xcode project needed |
 | **Data** | JSON + iCloud Drive sync |
-| **i18n** | 13 languages (EN/ZH/JA/KO/FR/DE/IT/ES/PT/HI/ID) |
+| **i18n** | 12 languages (EN/ZH/JA/KO/FR/IT/ES/PT/HI/ID) |
 | **CI/CD** | GitHub Actions auto build & release |
 | **Minimum OS** | macOS 14.0 Sonoma |
 
@@ -159,7 +159,7 @@ ProgressBar/
 │   ├── Models/               # Data models · Theme system
 │   ├── Views/                # SwiftUI views
 │   ├── Services/             # State · Persistence · Calendar · Updater
-│   └── Localization/         # i18n strings (13 languages)
+│   └── Localization/         # i18n strings (12 languages)
 ├── AppBundle/                # Info.plist · App icon
 ├── Scripts/                  # Build & release scripts
 ├── .github/workflows/        # CI auto build & release

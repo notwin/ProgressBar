@@ -144,7 +144,7 @@ cd mcp-server && npm install && npx tsc
 | **日历** | EventKit |
 | **构建** | `swiftc` 命令行直接编译，无需 Xcode 工程 |
 | **数据** | JSON + iCloud Drive 同步 |
-| **国际化** | 13 种语言（中/英/日/韩/法/德/意/西/葡/印地/印尼） |
+| **国际化** | 12 种语言（中/英/日/韩/法/意/西/葡/印地/印尼） |
 | **CI/CD** | GitHub Actions 自动编译发布 |
 | **最低系统** | macOS 14.0 Sonoma |
 
@@ -159,7 +159,7 @@ ProgressBar/
 │   ├── Models/               # 数据模型 · 主题配色
 │   ├── Views/                # SwiftUI 视图
 │   ├── Services/             # 状态管理 · 持久化 · 日历 · 更新
-│   └── Localization/         # 多语言资源（13 种语言）
+│   └── Localization/         # 多语言资源（12 种语言）
 ├── AppBundle/                # Info.plist · 应用图标
 ├── Scripts/                  # 编译部署 · 发版脚本
 ├── .github/workflows/        # CI 自动编译发布
