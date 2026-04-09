@@ -183,6 +183,13 @@ class AppState: ObservableObject {
         sections[i].name = name; save()
     }
 
+    /// 按索引切换分区（⌘1~⌘9）
+    func switchToSection(at index: Int) {
+        guard index >= 0, index < sections.count else { return }
+        withAnimation(.appSpring) { activeSectionId = sections[index].id }
+        save()
+    }
+
     /// 删除分区
     func deleteSection(_ id: String) {
         withAnimation(.appSpring) {
