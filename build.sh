@@ -56,13 +56,6 @@ done
 echo "==> Ad-hoc 签名 ..."
 codesign --force --sign - "$APP_PATH"
 
-echo "==> 打包发布 zip ..."
-cd /tmp && rm -rf ProgressBar-release && mkdir ProgressBar-release
-cp -R "$APP_PATH" ProgressBar-release/
-cd ProgressBar-release && zip -r "$SCRIPT_DIR/进度条.app.zip" "进度条.app" > /dev/null
-cd "$SCRIPT_DIR"
-echo "    已生成 进度条.app.zip"
-
 echo "==> 启动应用 ..."
 sleep 1
 open -a '进度条'

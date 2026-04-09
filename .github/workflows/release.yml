@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Build
+        run: |
+          swiftc \
+            Models.swift Theme.swift \
+            PersistenceManager.swift CalendarManager.swift AppState.swift \
+            CalendarPicker.swift \
+            SectionTabBar.swift TaskRowView.swift ArchiveSectionView.swift \
+            UpdateChecker.swift \
+            ThemePickerView.swift SettingsView.swift ExportCardView.swift ContentView.swift \
+            ProgressBarApp.swift \
+            -parse-as-library \
+            -framework SwiftUI \
+            -framework AppKit \
+            -framework QuartzCore \
+            -framework UniformTypeIdentifiers \
+            -framework EventKit \
+            -o jindu
+
+      - name: Package app bundle
+        run: |
+          APP="进度条.app"
+          mkdir -p "$APP/Contents/MacOS"
+          mkdir -p "$APP/Contents/Resources"
+          cp AppBundle/Contents/Info.plist "$APP/Contents/Info.plist"
+          cp AppBundle/Contents/Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+          cp jindu "$APP/Contents/MacOS/ProgressBar"
+
+          # Copy localization resources
+          for lproj in Localization/*.lproj; do
+            lname="$(basename "$lproj")"
+            mkdir -p "$APP/Contents/Resources/$lname"
+            cp "$lproj/"*.strings "$APP/Contents/Resources/$lname/"
+          done
+
+          codesign --force --sign - "$APP"
+          zip -r "进度条.app.zip" "$APP"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: 进度条.app.zip
