@@ -55,9 +55,23 @@ jobs:
           codesign --force --sign - "$APP"
           zip -r "ProgressBar.app.zip" "$APP"
 
+      - name: Generate release notes
+        id: notes
+        run: |
+          # 从 CHANGELOG.md 提取当前版本的发布日志
+          VERSION="${GITHUB_REF_NAME#v}"
+          NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md)
+          if [ -z "$NOTES" ]; then
+            # 如果 CHANGELOG 没有对应版本，用 commit log
+            PREV_TAG=$(git tag --sort=-v:refname | head -2 | tail -1)
+            NOTES=$(git log --pretty=format:"- %s" "$PREV_TAG"..HEAD -- . ':!*.zip' | grep -v "^- chore: bump")
+          fi
+          # 写入文件避免多行转义问题
+          echo "$NOTES" > /tmp/release_notes.md
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           name: v${{ steps.version.outputs.version }}
-          generate_release_notes: true
+          body_path: /tmp/release_notes.md
           files: ProgressBar.app.zip

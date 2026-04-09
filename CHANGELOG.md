@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.8] - 2026-04-09
+
+### Changed
+- 日历同步从导出菜单独立为工具栏按钮，与 iCloud 图标并列
+- 未同步时显示同步按钮，已同步时显示解绑按钮
+- 发布日志改为从 CHANGELOG 自动提取
+
+### Fixed
+- 任务行 hover 残影问题（去除动画延迟）
+- 设置面板支持 ⌘W 关闭
+- Swift 6 并发安全编译问题
+- App bundle 改名 Progress.app 适配国际化
+
 ## [4.5] - 2026-04-09
 
 ### Added
