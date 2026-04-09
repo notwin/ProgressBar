@@ -246,9 +246,11 @@ struct SettingsView: View {
         VStack(spacing: 12) {
             Spacer()
 
-            Image(systemName: "chart.bar.fill")
-                .font(.system(size: 40))
-                .foregroundColor(.accentColor)
+            if let icon = NSApp.applicationIconImage {
+                Image(nsImage: icon)
+                    .resizable()
+                    .frame(width: 80, height: 80)
+            }
 
             Text(L("about.name"))
                 .font(.system(size: 20, weight: .bold))

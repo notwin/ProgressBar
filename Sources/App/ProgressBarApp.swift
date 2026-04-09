@@ -26,6 +26,8 @@ final class SettingsWindowController {
         )
         w.title = L("settings.title")
         w.contentView = hostingView
+        w.setFrameAutosaveName("")
+        w.setContentSize(NSSize(width: 420, height: 360))
         w.center()
         w.isReleasedWhenClosed = false
 
