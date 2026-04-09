@@ -197,7 +197,7 @@ struct TaskRowView: View {
                         logPickedDate = logDateToDate(log.date)
                         editingLogDateId = log.id
                     }) {
-                        Text(log.date).font(.system(size: 12, weight: .medium, design: .monospaced))
+                        Text(logDateDisplay(log.date)).font(.system(size: 12, weight: .medium, design: .monospaced))
                             .foregroundColor(theme.accent.opacity(0.8))
                     }
                     .buttonStyle(.plain)
@@ -246,6 +246,12 @@ struct TaskRowView: View {
         }
         .padding(.leading, 44).padding(.trailing, 14).padding(.bottom, 8)
         .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    /// 日志日期仅显示 MM.DD（底层数据保持 YY.MM.DD 不变）
+    func logDateDisplay(_ d: String) -> String {
+        let parts = d.split(separator: ".")
+        return parts.count == 3 ? "\(parts[1]).\(parts[2])" : d
     }
 
     /// 将 "YY.MM.DD" 格式的日志日期转为 Date

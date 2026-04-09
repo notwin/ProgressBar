@@ -1,0 +1,17 @@
+{
+  "name": "progressbar-mcp-server",
+  "version": "4.2.0",
+  "description": "MCP server for 进度条 (ProgressBar) task management app",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "@types/node": "^22.15.2"
+  }
+}
