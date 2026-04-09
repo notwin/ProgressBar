@@ -138,11 +138,8 @@ class UpdateChecker: ObservableObject {
                     s.updateError = L("error.download_no_file")
                     return
                 }
-                // 重命名临时文件保留正确扩展名（DMG 挂载需要）
-                let ext = s.assetName.flatMap { URL(string: $0)?.pathExtension ?? $0.components(separatedBy: ".").last } ?? "zip"
-                let dest = tempURL.deletingLastPathComponent().appendingPathComponent("update.\(ext)")
-                try? FileManager.default.moveItem(at: tempURL, to: dest)
-                s.installUpdate(from: dest)
+                let isDMG = s.assetName?.hasSuffix(".dmg") ?? false
+                s.installUpdate(from: tempURL, isDMG: isDMG)
             }
         }
         downloadTask = task
@@ -158,10 +155,9 @@ class UpdateChecker: ObservableObject {
     }
 
     /// 安装更新：解压/挂载 → 替换 → 重启
-    private func installUpdate(from fileURL: URL) {
+    private func installUpdate(from fileURL: URL, isDMG: Bool) {
         let fm = FileManager.default
         let tempDir = fm.temporaryDirectory.appendingPathComponent("ProgressBarUpdate-\(UUID().uuidString)")
-        let isDMG = fileURL.pathExtension.lowercased() == "dmg"
 
         do {
             try fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
@@ -170,11 +166,15 @@ class UpdateChecker: ObservableObject {
             var mountPoint: String?
 
             if isDMG {
+                // 临时文件需要 .dmg 扩展名才能挂载
+                let dmgFile = tempDir.appendingPathComponent("update.dmg")
+                try fm.copyItem(at: fileURL, to: dmgFile)
+
                 // 挂载 DMG
                 let mp = "/Volumes/Progress-\(UUID().uuidString.prefix(8))"
                 let attach = Process()
                 attach.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
-                attach.arguments = ["attach", fileURL.path, "-mountpoint", mp, "-nobrowse", "-quiet"]
+                attach.arguments = ["attach", dmgFile.path, "-mountpoint", mp, "-nobrowse", "-quiet"]
                 try attach.run()
                 attach.waitUntilExit()
                 guard attach.terminationStatus == 0 else {
