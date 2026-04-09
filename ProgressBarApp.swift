@@ -41,7 +41,7 @@ struct ProgressBarApp: App {
 
     var body: some Scene {
         WindowGroup("进度条") {
-            ContentView(state: state)
+            ContentView(state: state, updater: updater)
                 .frame(minWidth: 600, minHeight: 400)
         }
         .windowStyle(.titleBar)

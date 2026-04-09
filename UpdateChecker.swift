@@ -21,10 +21,20 @@ class UpdateChecker: ObservableObject {
     @Published var updateError: String?
 
     private let repo = "notwin/ProgressBar"
+    private let lastCheckKey = "lastUpdateCheckDate"
     private var downloadTask: URLSessionDownloadTask?
 
     var currentVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "未知"
+    }
+
+    /// 启动时静默检查（每天最多一次）
+    func checkOnLaunchIfNeeded() {
+        let now = Date()
+        if let last = UserDefaults.standard.object(forKey: lastCheckKey) as? Date,
+           now.timeIntervalSince(last) < 86400 { return }
+        UserDefaults.standard.set(now, forKey: lastCheckKey)
+        checkForUpdates()
     }
 
     /// 应用安装路径

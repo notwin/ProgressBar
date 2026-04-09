@@ -8,6 +8,7 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @ObservedObject var state: AppState
+    @ObservedObject var updater: UpdateChecker
     @State private var newTaskTitle = ""
     @State private var searchText = ""
     @State private var showThemePicker = false
@@ -105,6 +106,7 @@ struct ContentView: View {
                 state.triggerCalendarSync = false
             }
         }
+        .onAppear { updater.checkOnLaunchIfNeeded() }
         .background(theme.bg)
         .overlay(alignment: .bottom) {
             if toastVisible {
@@ -170,6 +172,21 @@ struct ContentView: View {
                 }
                 .buttonStyle(.plain)
                 .popover(isPresented: $showThemePicker) { ThemePickerView().environmentObject(state) }
+
+                // 更新提示按钮
+                if updater.hasUpdate {
+                    Button(action: {
+                        SettingsWindowController.shared.open(state: state, updater: updater, tab: .update)
+                    }) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(theme.accent)
+                            .frame(width: 32, height: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help("发现新版本 v\(updater.latestVersion ?? "")")
+                }
 
                 // 快捷键提示按钮
                 Button(action: { showShortcutsPanel.toggle() }) {
