@@ -60,39 +60,40 @@ class UpdateChecker: ObservableObject {
         request.timeoutInterval = 10
 
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            let s = self
             Task { @MainActor in
-                guard let self else { return }
-                self.isChecking = false
-                self.lastCheckDate = Date()
+                guard let s else { return }
+                s.isChecking = false
+                s.lastCheckDate = Date()
 
                 if let error {
-                    self.checkError = L("error.network_%@", error.localizedDescription)
+                    s.checkError = L("error.network_%@", error.localizedDescription)
                     return
                 }
                 guard let data,
                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                       let tagName = json["tag_name"] as? String else {
-                    self.checkError = L("error.parse_version")
+                    s.checkError = L("error.parse_version")
                     return
                 }
 
                 let remote = tagName.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
-                self.latestVersion = remote
-                self.releaseNotes = json["body"] as? String
-                self.downloadURL = json["html_url"] as? String
+                s.latestVersion = remote
+                s.releaseNotes = json["body"] as? String
+                s.downloadURL = json["html_url"] as? String
 
                 // 查找 .zip 资源下载地址
                 if let assets = json["assets"] as? [[String: Any]] {
                     for asset in assets {
                         if let name = asset["name"] as? String, name.hasSuffix(".zip"),
                            let browserURL = asset["browser_download_url"] as? String {
-                            self.assetURL = browserURL
+                            s.assetURL = browserURL
                             break
                         }
                     }
                 }
 
-                self.hasUpdate = self.isNewer(remote: remote, local: self.currentVersion)
+                s.hasUpdate = s.isNewer(remote: remote, local: s.currentVersion)
             }
         }.resume()
     }
@@ -114,19 +115,20 @@ class UpdateChecker: ObservableObject {
 
         let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
         let task = session.downloadTask(with: url) { [weak self] tempURL, response, error in
+            let s = self
             Task { @MainActor in
-                guard let self else { return }
-                self.isDownloading = false
+                guard let s else { return }
+                s.isDownloading = false
 
                 if let error {
-                    self.updateError = L("error.download_%@", error.localizedDescription)
+                    s.updateError = L("error.download_%@", error.localizedDescription)
                     return
                 }
                 guard let tempURL else {
-                    self.updateError = L("error.download_no_file")
+                    s.updateError = L("error.download_no_file")
                     return
                 }
-                self.installUpdate(from: tempURL)
+                s.installUpdate(from: tempURL)
             }
         }
         downloadTask = task
