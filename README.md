@@ -116,7 +116,7 @@
 ```bash
 git clone https://github.com/notwin/ProgressBar.git
 cd ProgressBar
-./build.sh    # 编译 → 签名 → 部署 → 启动
+./Scripts/build.sh    # 编译 → 签名 → 部署 → 启动
 ```
 
 > **要求** macOS 14.0+，Xcode Command Line Tools（提供 Swift 6 编译器）
@@ -154,20 +154,14 @@ cd mcp-server && npm install && npx tsc
 
 ```
 ProgressBar/
-├── Models.swift              # 数据模型与状态定义
-├── Theme.swift               # 主题配色系统
-├── AppState.swift            # 状态管理 · CRUD · 日历同步
-├── PersistenceManager.swift  # 持久化 · iCloud 同步
-├── CalendarManager.swift     # 系统日历集成
-├── UpdateChecker.swift       # GitHub Releases 自动更新
-├── ContentView.swift         # 主视图布局
-├── TaskRowView.swift         # 任务行视图
-├── SectionTabBar.swift       # 分区标签栏
-├── SettingsView.swift        # 设置窗口（外观·更新·关于）
-├── ExportCardView.swift      # 导出渲染
-├── Localization/             # 多语言资源（13 种语言）
-├── build.sh                  # 一键编译部署（开发用）
-├── release.sh                # 一键发版脚本
+├── Sources/
+│   ├── App/                  # 应用入口
+│   ├── Models/               # 数据模型 · 主题配色
+│   ├── Views/                # SwiftUI 视图
+│   ├── Services/             # 状态管理 · 持久化 · 日历 · 更新
+│   └── Localization/         # 多语言资源（13 种语言）
+├── AppBundle/                # Info.plist · 应用图标
+├── Scripts/                  # 编译部署 · 发版脚本
 ├── .github/workflows/        # CI 自动编译发布
 └── mcp-server/               # MCP Server
 ```

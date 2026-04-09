@@ -116,7 +116,7 @@ Go to [**Releases**](https://github.com/notwin/ProgressBar/releases/latest), dow
 ```bash
 git clone https://github.com/notwin/ProgressBar.git
 cd ProgressBar
-./build.sh    # Compile → Sign → Deploy → Launch
+./Scripts/build.sh    # Compile → Sign → Deploy → Launch
 ```
 
 > **Requires** macOS 14.0+, Xcode Command Line Tools (provides Swift 6 compiler)
@@ -154,20 +154,14 @@ Supported operations: list sections, list tasks, create tasks, update status, ad
 
 ```
 ProgressBar/
-├── Models.swift              # Data models & state definitions
-├── Theme.swift               # Theme color system
-├── AppState.swift            # State management · CRUD · Calendar sync
-├── PersistenceManager.swift  # Persistence · iCloud sync
-├── CalendarManager.swift     # System calendar integration
-├── UpdateChecker.swift       # GitHub Releases auto-update
-├── ContentView.swift         # Main view layout
-├── TaskRowView.swift         # Task row view
-├── SectionTabBar.swift       # Section tab bar
-├── SettingsView.swift        # Settings window (Appearance · Update · About)
-├── ExportCardView.swift      # Export rendering
-├── Localization/             # i18n strings (13 languages)
-├── build.sh                  # One-command build & deploy (dev)
-├── release.sh                # One-command release script
+├── Sources/
+│   ├── App/                  # App entry point
+│   ├── Models/               # Data models · Theme system
+│   ├── Views/                # SwiftUI views
+│   ├── Services/             # State · Persistence · Calendar · Updater
+│   └── Localization/         # i18n strings (13 languages)
+├── AppBundle/                # Info.plist · App icon
+├── Scripts/                  # Build & release scripts
 ├── .github/workflows/        # CI auto build & release
 └── mcp-server/               # MCP Server
 ```

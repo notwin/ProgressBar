@@ -22,14 +22,16 @@ jobs:
 
       - name: Build
         run: |
+          SRC="Sources"
           swiftc \
-            Models.swift Theme.swift \
-            PersistenceManager.swift CalendarManager.swift AppState.swift \
-            CalendarPicker.swift \
-            SectionTabBar.swift TaskRowView.swift ArchiveSectionView.swift \
-            UpdateChecker.swift \
-            ThemePickerView.swift SettingsView.swift ExportCardView.swift ContentView.swift \
-            ProgressBarApp.swift \
+            "$SRC/Models/Models.swift" "$SRC/Models/Theme.swift" \
+            "$SRC/Services/PersistenceManager.swift" "$SRC/Services/CalendarManager.swift" \
+            "$SRC/Services/AppState.swift" "$SRC/Services/UpdateChecker.swift" \
+            "$SRC/Views/CalendarPicker.swift" "$SRC/Views/SectionTabBar.swift" \
+            "$SRC/Views/TaskRowView.swift" "$SRC/Views/ArchiveSectionView.swift" \
+            "$SRC/Views/ThemePickerView.swift" "$SRC/Views/SettingsView.swift" \
+            "$SRC/Views/ExportCardView.swift" "$SRC/Views/ContentView.swift" \
+            "$SRC/App/ProgressBarApp.swift" \
             -parse-as-library \
             -O -whole-module-optimization \
             -framework SwiftUI \
@@ -49,7 +51,7 @@ jobs:
           cp jindu "$APP/Contents/MacOS/ProgressBar"
 
           # Copy localization resources
-          for lproj in Localization/*.lproj; do
+          for lproj in Sources/Localization/*.lproj; do
             lname="$(basename "$lproj")"
             mkdir -p "$APP/Contents/Resources/$lname"
             cp "$lproj/"*.strings "$APP/Contents/Resources/$lname/"

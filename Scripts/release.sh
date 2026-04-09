@@ -6,7 +6,8 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$ROOT_DIR"
 
 # 读取当前版本号
 CURRENT=$(grep -A1 CFBundleShortVersionString AppBundle/Contents/Info.plist | grep string | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
