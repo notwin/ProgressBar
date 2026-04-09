@@ -21,7 +21,9 @@
 		<string>es</string>
 	</array>
 	<key>CFBundleDisplayName</key>
-	<string>Progress</string>
+	<string>进度条</string>
+	<key>LSHasLocalizedDisplayName</key>
+	<true/>
 	<key>CFBundleExecutable</key>
 	<string>ProgressBar</string>
 	<key>CFBundleIconFile</key>
@@ -29,7 +31,7 @@
 	<key>CFBundleIdentifier</key>
 	<string>com.notwin.progressbar</string>
 	<key>CFBundleName</key>
-	<string>Progress</string>
+	<string>进度条</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -43,8 +45,8 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSCalendarsUsageDescription</key>
-	<string>Progress needs access to your calendar to sync tasks with deadlines.</string>
+	<string>进度条需要访问您的日历，以便将有截止日期的任务同步到系统日历。</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>Progress needs full calendar access to add and remove task events.</string>
+	<string>进度条需要完全访问您的日历，以便添加和删除任务日程。</string>
 </dict>
 </plist>
