@@ -16,7 +16,19 @@
 
 <br>
 
-<img src="screenshots/main.png" width="680" alt="进度条主界面">
+<img src="screenshots/main.png" width="680" alt="进度条主界面 - 浅色">
+
+<br>
+
+<details>
+<summary><b>更多截图</b></summary>
+<br>
+<p><b>黑曜石主题</b></p>
+<img src="screenshots/dark-main.png" width="680" alt="黑曜石主题">
+<br><br>
+<p><b>霓虹主题</b></p>
+<img src="screenshots/neon-theme.png" width="680" alt="霓虹主题">
+</details>
 
 <br>
 
