@@ -1,7 +1,7 @@
 <div align="center">
 
 <h1>
-<img src="AppBundle/Contents/Resources/AppIcon.icns" width="42" align="center" alt="icon">
+<img src="screenshots/icon.png" width="42" align="center" alt="icon">
 进度条
 </h1>
 
