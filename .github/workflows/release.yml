@@ -53,11 +53,11 @@ jobs:
           done
 
           codesign --force --sign - "$APP"
-          zip -r "进度条.app.zip" "$APP"
+          zip -r "ProgressBar.app.zip" "$APP"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           name: v${{ steps.version.outputs.version }}
           generate_release_notes: true
-          files: 进度条.app.zip
+          files: ProgressBar.app.zip
