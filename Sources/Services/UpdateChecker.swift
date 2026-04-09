@@ -227,6 +227,8 @@ class UpdateChecker: ObservableObject {
             rm -rf "\(appDest)"
             cp -R "\(stagingApp.path)" "\(appDest)"
             codesign --force --sign - "\(appDest)"
+            # 清除窗口状态缓存，防止恢复旧尺寸
+            rm -rf ~/Library/Saved\\ Application\\ State/com.notwin.progressbar.savedState
             open -a "\(appDest)"
             rm -rf "\(tempDir.path)"
             """

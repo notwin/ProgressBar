@@ -16,22 +16,25 @@ final class SettingsWindowController {
         if let w = window, w.isVisible {
             w.close()
         }
+        let size = NSSize(width: 420, height: 360)
         let view = SettingsView(updater: updater, selectedTab: tab).environmentObject(state)
         let hostingView = NSHostingView(rootView: view)
+        hostingView.frame = NSRect(origin: .zero, size: size)
         let w = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 380),
+            contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
-        let size = NSSize(width: 420, height: 360)
         w.title = L("settings.title")
         w.contentView = hostingView
-        w.setContentSize(size)
         w.contentMinSize = size
         w.contentMaxSize = size
-        w.center()
+        // 禁用窗口状态恢复（防止自动更新后 macOS 恢复旧尺寸）
+        w.restorationClass = nil
+        w.invalidateRestorableState()
         w.isReleasedWhenClosed = false
+        w.center()
 
         // 清理旧的事件监视器
         if let monitor = keyMonitor {
