@@ -141,6 +141,7 @@ struct SettingsView: View {
             aboutTab.tabItem { Label(L("settings.about"), systemImage: "info.circle") }.tag(SettingsTab.about)
         }
         .frame(width: 600, height: 350)
+        .preferredColorScheme(state.themeId == "auto" ? nil : (state.themeId == "paper" ? .light : .dark))
     }
 
     // ── 外观 ──
