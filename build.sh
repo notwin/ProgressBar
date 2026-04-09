@@ -14,7 +14,8 @@ swiftc \
   PersistenceManager.swift CalendarManager.swift AppState.swift \
   CalendarPicker.swift \
   SectionTabBar.swift TaskRowView.swift ArchiveSectionView.swift \
-  ThemePickerView.swift ExportCardView.swift ContentView.swift \
+  UpdateChecker.swift \
+  ThemePickerView.swift SettingsView.swift ExportCardView.swift ContentView.swift \
   ProgressBarApp.swift \
   -parse-as-library \
   -framework SwiftUI \

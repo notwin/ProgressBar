@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.4] - 2026-04-09
+
+### Added
+- 设置窗口（⌘,）：外观、检查更新、关于三个标签页
+- GitHub Releases 检查更新功能，应用菜单新增「检查更新...」入口
+- ⌘1~⌘9 快捷键切换分区
+
+### Changed
+- 精简菜单栏，移除无用的系统默认菜单项（Edit/View）
+- ⌘N 修复为新建任务（不再触发系统新建窗口）
+
 ## [4.2] - 2025-04-09
 
 ### Added
