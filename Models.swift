@@ -3,6 +3,17 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import SwiftUI
+import Foundation
+
+/// 本地化快捷函数
+func L(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
+/// 带格式化参数的本地化
+func L(_ key: String, _ args: CVarArg...) -> String {
+    String(format: NSLocalizedString(key, comment: ""), arguments: args)
+}
 
 struct LogEntry: Identifiable, Codable, Equatable {
     var id: String
@@ -78,10 +89,10 @@ extension TaskStatus {
     /// 状态对应的图标、标签和颜色
     var info: StatusInfo {
         switch self {
-        case .pending:    return StatusInfo(icon: "circle",                      label: "待开始", colorKey: .t3)
-        case .inProgress: return StatusInfo(icon: "circle.fill",                 label: "进行中", colorKey: .accent)
-        case .blocked:    return StatusInfo(icon: "pause.circle.fill",           label: "已阻塞", colorKey: .orange)
-        case .done:       return StatusInfo(icon: "checkmark.circle.fill",       label: "已完成", colorKey: .green)
+        case .pending:    return StatusInfo(icon: "circle",                      label: L("status.pending"), colorKey: .t3)
+        case .inProgress: return StatusInfo(icon: "circle.fill",                 label: L("status.in_progress"), colorKey: .accent)
+        case .blocked:    return StatusInfo(icon: "pause.circle.fill",           label: L("status.blocked"), colorKey: .orange)
+        case .done:       return StatusInfo(icon: "checkmark.circle.fill",       label: L("status.done"), colorKey: .green)
         }
     }
 }

@@ -1,0 +1,4 @@
+CFBundleDisplayName = "Progress";
+CFBundleName = "Progress";
+NSCalendarsUsageDescription = "Progress necesita acceso a tu calendario para sincronizar tareas con fechas límite.";
+NSCalendarsFullAccessUsageDescription = "Progress necesita acceso completo al calendario para agregar y eliminar eventos de tareas.";

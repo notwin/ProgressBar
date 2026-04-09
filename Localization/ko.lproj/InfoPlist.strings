@@ -1,0 +1,4 @@
+CFBundleDisplayName = "Progress";
+CFBundleName = "Progress";
+NSCalendarsUsageDescription = "Progress는 마감일이 있는 작업을 캘린더와 동기화하기 위해 캘린더 접근 권한이 필요합니다.";
+NSCalendarsFullAccessUsageDescription = "Progress는 작업 이벤트를 추가하고 제거하기 위해 캘린더에 대한 전체 접근 권한이 필요합니다.";

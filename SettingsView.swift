@@ -5,7 +5,119 @@
 import SwiftUI
 
 enum SettingsTab: Hashable {
-    case appearance, update, about
+    case appearance, language, update, about
+}
+
+struct LanguageOption: Identifiable {
+    let id: String
+    let name: String
+}
+
+private let languages: [LanguageOption] = [
+    LanguageOption(id: "auto", name: "Auto"),
+    LanguageOption(id: "en", name: "English (United States)"),
+    LanguageOption(id: "fr", name: "Français (France)"),
+    LanguageOption(id: "de", name: "Deutsch (Deutschland)"),
+    LanguageOption(id: "hi", name: "हिन्दी (भारत)"),
+    LanguageOption(id: "id", name: "Indonesia (Indonesia)"),
+    LanguageOption(id: "it", name: "Italiano (Italia)"),
+    LanguageOption(id: "ja", name: "日本語 (日本)"),
+    LanguageOption(id: "ko", name: "한국어(대한민국)"),
+    LanguageOption(id: "pt-BR", name: "Português (Brasil)"),
+    LanguageOption(id: "es-419", name: "Español (Latinoamérica)"),
+    LanguageOption(id: "es", name: "Español (España)"),
+    LanguageOption(id: "zh-Hans", name: "简体中文"),
+    LanguageOption(id: "zh-Hant", name: "繁體中文"),
+]
+
+private struct LanguageRow: View {
+    let lang: LanguageOption
+    let isActive: Bool
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Text(lang.name).font(.system(size: 14, weight: isActive ? .semibold : .medium))
+                Spacer()
+                if isActive {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.accentColor)
+                }
+            }
+            .padding(.horizontal, 10).padding(.vertical, 8)
+            .contentShape(Rectangle())
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isActive ? Color.accentColor.opacity(0.08) :
+                          (isHovered ? Color.secondary.opacity(0.08) : Color.clear))
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.12)) { isHovered = hovering }
+        }
+    }
+}
+
+struct LanguagePickerView: View {
+    @State private var currentLang: String = {
+        if let langs = UserDefaults.standard.array(forKey: "AppleLanguages") as? [String],
+           let first = langs.first {
+            let supported = ["zh-Hant", "zh-Hans", "en", "fr", "de", "hi", "id", "it", "ja", "ko", "pt-BR", "es-419", "es"]
+            // exact match first
+            if supported.contains(first) { return first }
+            // prefix match
+            for s in supported {
+                if first.hasPrefix(s) || s.hasPrefix(first) { return s }
+            }
+        }
+        return "auto"
+    }()
+    @State private var showRestart = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L("settings.language"))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.secondary)
+                .textCase(.uppercase).tracking(0.5)
+
+            ForEach(languages) { lang in
+                LanguageRow(lang: lang, isActive: lang.id == currentLang) {
+                    if lang.id == currentLang { return }
+                    currentLang = lang.id
+                    if lang.id == "auto" {
+                        UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+                    } else {
+                        UserDefaults.standard.set([lang.id], forKey: "AppleLanguages")
+                    }
+                    showRestart = true
+                }
+            }
+
+            if showRestart {
+                HStack(spacing: 8) {
+                    Text(L("settings.restart_hint"))
+                        .font(.system(size: 11))
+                        .foregroundColor(.orange)
+                    Spacer()
+                    Button(L("settings.restart")) {
+                        let url = URL(fileURLWithPath: Bundle.main.bundlePath)
+                        NSWorkspace.shared.open(url)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            NSApp.terminate(nil)
+                        }
+                    }
+                    .font(.system(size: 11))
+                }
+                .padding(.top, 4)
+            }
+        }
+        .padding(14)
+    }
 }
 
 struct SettingsView: View {
@@ -17,19 +129,26 @@ struct SettingsView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            appearanceTab.tabItem { Label("外观", systemImage: "paintbrush") }.tag(SettingsTab.appearance)
-            updateTab.tabItem { Label("更新", systemImage: "arrow.triangle.2.circlepath") }.tag(SettingsTab.update)
-            aboutTab.tabItem { Label("关于", systemImage: "info.circle") }.tag(SettingsTab.about)
+            appearanceTab.tabItem { Label(L("settings.appearance"), systemImage: "paintbrush") }.tag(SettingsTab.appearance)
+            languageTab.tabItem { Label(L("settings.language"), systemImage: "globe") }.tag(SettingsTab.language)
+            updateTab.tabItem { Label(L("settings.update"), systemImage: "arrow.triangle.2.circlepath") }.tag(SettingsTab.update)
+            aboutTab.tabItem { Label(L("settings.about"), systemImage: "info.circle") }.tag(SettingsTab.about)
         }
-        .frame(width: 420, height: 340)
+        .frame(width: 460, height: 480)
     }
 
     // ── 外观 ──
     private var appearanceTab: some View {
-        VStack(spacing: 0) {
+        ScrollView {
             ThemePickerView().environmentObject(state)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // ── 语言 ──
+    private var languageTab: some View {
+        ScrollView {
+            LanguagePickerView()
+        }
     }
 
     // ── 更新 ──
@@ -42,9 +161,9 @@ struct SettingsView: View {
                 .foregroundColor(updater.hasUpdate ? .orange : .green)
 
             if updater.hasUpdate {
-                Text("发现新版本 v\(updater.latestVersion ?? "")")
+                Text(L("update.found_%@", updater.latestVersion ?? ""))
                     .font(.system(size: 16, weight: .semibold))
-                Text("当前版本: v\(updater.currentVersion)")
+                Text(L("update.current_%@", updater.currentVersion))
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
 
@@ -66,15 +185,15 @@ struct SettingsView: View {
                     VStack(spacing: 6) {
                         ProgressView(value: updater.downloadProgress)
                             .frame(width: 200)
-                        Text("正在下载... \(Int(updater.downloadProgress * 100))%")
+                        Text(L("update.downloading_%d", Int(updater.downloadProgress * 100)))
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
                     }
                 } else {
                     HStack(spacing: 12) {
-                        Button("自动更新") { updater.performUpdate() }
+                        Button(L("update.auto")) { updater.performUpdate() }
                             .buttonStyle(.borderedProminent)
-                        Button("前往下载") { updater.openDownloadPage() }
+                        Button(L("update.download")) { updater.openDownloadPage() }
                     }
                 }
                 if let err = updater.updateError {
@@ -85,20 +204,20 @@ struct SettingsView: View {
             } else if updater.isChecking {
                 ProgressView()
                     .scaleEffect(0.8)
-                Text("正在检查更新...")
+                Text(L("update.checking"))
                     .font(.system(size: 14))
                     .foregroundColor(.secondary)
             } else if let error = updater.checkError {
-                Text("检查失败")
+                Text(L("update.failed"))
                     .font(.system(size: 16, weight: .semibold))
                 Text(error)
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
-                Button("重试") { updater.checkForUpdates() }
+                Button(L("update.retry")) { updater.checkForUpdates() }
             } else {
-                Text("已是最新版本")
+                Text(L("update.latest"))
                     .font(.system(size: 16, weight: .semibold))
                 Text("v\(updater.currentVersion)")
                     .font(.system(size: 12))
@@ -109,12 +228,12 @@ struct SettingsView: View {
 
             HStack {
                 if let date = updater.lastCheckDate {
-                    Text("上次检查: \(date.formatted(date: .abbreviated, time: .shortened))")
+                    Text(L("update.last_check_%@", date.formatted(date: .abbreviated, time: .shortened)))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                 }
                 Spacer()
-                Button("检查更新") { updater.checkForUpdates() }
+                Button(L("update.check")) { updater.checkForUpdates() }
                     .disabled(updater.isChecking)
             }
         }
@@ -131,26 +250,26 @@ struct SettingsView: View {
                 .font(.system(size: 40))
                 .foregroundColor(.accentColor)
 
-            Text("进度条")
+            Text(L("about.name"))
                 .font(.system(size: 20, weight: .bold))
 
             Text("v\(updater.currentVersion)")
                 .font(.system(size: 13))
                 .foregroundColor(.secondary)
 
-            Text("一个简洁的 macOS 任务进度管理工具")
+            Text(L("about.description"))
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
 
             Spacer()
 
             HStack(spacing: 16) {
-                Button("GitHub") {
+                Button(L("about.github")) {
                     if let url = URL(string: "https://github.com/notwin/ProgressBar") {
                         NSWorkspace.shared.open(url)
                     }
                 }
-                Button("反馈问题") {
+                Button(L("about.feedback")) {
                     if let url = URL(string: "https://github.com/notwin/ProgressBar/issues") {
                         NSWorkspace.shared.open(url)
                     }

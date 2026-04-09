@@ -1,0 +1,4 @@
+CFBundleDisplayName = "Progress";
+CFBundleName = "Progress";
+NSCalendarsUsageDescription = "Progress को समय सीमा वाले कार्यों को सिंक करने के लिए आपके कैलेंडर तक पहुँच चाहिए।";
+NSCalendarsFullAccessUsageDescription = "Progress को कार्य इवेंट जोड़ने और हटाने के लिए पूर्ण कैलेंडर एक्सेस चाहिए।";

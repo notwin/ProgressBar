@@ -55,10 +55,10 @@ struct SectionTabBar: View {
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
-                            Button("重命名") { editName = sec.name; editId = sec.id }
+                            Button(L("rename")) { editName = sec.name; editId = sec.id }
                             if state.sections.count > 1 {
                                 Divider()
-                                Button("删除分区", role: .destructive) { deleteId = sec.id; showDeleteAlert = true }
+                                Button(L("section.delete_title"), role: .destructive) { deleteId = sec.id; showDeleteAlert = true }
                             }
                         }
                     }
@@ -76,28 +76,28 @@ struct SectionTabBar: View {
                 .buttonStyle(.plain)
                 .popover(isPresented: $showAdd, arrowEdge: .bottom) {
                     VStack(spacing: 10) {
-                        Text("新建分区").font(.system(size: 14, weight: .semibold)).foregroundColor(theme.t1)
-                        TextField("", text: $newName, prompt: Text("分区名称").foregroundColor(theme.t3))
+                        Text(L("section.new")).font(.system(size: 14, weight: .semibold)).foregroundColor(theme.t1)
+                        TextField("", text: $newName, prompt: Text(L("section.name_placeholder")).foregroundColor(theme.t3))
                             .textFieldStyle(.plain).font(.system(size: 14))
                             .padding(8).background(theme.bg).cornerRadius(6)
                             .overlay(RoundedRectangle(cornerRadius: 6).stroke(theme.border, lineWidth: 0.5))
                             .onSubmit { doAdd() }
                         HStack {
-                            Button("取消") { showAdd = false }.foregroundColor(theme.t3)
+                            Button(L("cancel")) { showAdd = false }.foregroundColor(theme.t3)
                             Spacer()
-                            Button("创建") { doAdd() }.foregroundColor(theme.accent)
+                            Button(L("create")) { doAdd() }.foregroundColor(theme.accent)
                         }.font(.system(size: 14, weight: .medium)).buttonStyle(.plain)
                     }.padding(14).frame(width: 200)
                 }
             }
             .padding(.horizontal, 24)
         }
-        .alert("确认删除分区", isPresented: $showDeleteAlert) {
-            Button("取消", role: .cancel) {}
-            Button("删除", role: .destructive) { if let id = deleteId { state.deleteSection(id) } }.keyboardShortcut(.defaultAction)
+        .alert(L("section.delete_title"), isPresented: $showDeleteAlert) {
+            Button(L("cancel"), role: .cancel) {}
+            Button(L("delete"), role: .destructive) { if let id = deleteId { state.deleteSection(id) } }.keyboardShortcut(.defaultAction)
         } message: {
             if let id = deleteId, let sec = state.sections.first(where: { $0.id == id }) {
-                Text("确定删除「\(sec.name)」？其中 \(sec.tasks.count + sec.archived.count) 个任务将被永久删除。")
+                Text(L("section.delete_msg_%@_%d", sec.name, sec.tasks.count + sec.archived.count))
             }
         }
     }

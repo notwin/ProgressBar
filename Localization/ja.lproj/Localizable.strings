@@ -1,0 +1,164 @@
+/* ═══════════════════════════════════════════════════════════════════
+   Japanese Localization
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Common ── */
+"cancel" = "キャンセル";
+"delete" = "削除";
+"ok" = "OK";
+"rename" = "名前を変更";
+"create" = "作成";
+
+/* ── Task Status ── */
+"status.pending" = "未着手";
+"status.in_progress" = "進行中";
+"status.blocked" = "ブロック中";
+"status.done" = "完了";
+
+/* ── Theme Names ── */
+"theme.obsidian" = "オブシディアン";
+"theme.abyss" = "アビス";
+"theme.sandstone" = "サンドストーン";
+"theme.neon" = "ネオン";
+"theme.frost" = "フロスト";
+"theme.paper" = "ペーパー";
+
+/* ── Menu Bar ── */
+"menu.new_task" = "新規タスク";
+"menu.search_task" = "タスクを検索";
+"menu.copy_clipboard" = "クリップボードにコピー";
+"menu.export_image" = "画像として書き出す";
+"menu.sync_calendar" = "カレンダーに同期";
+"menu.shortcuts" = "キーボードショートカット";
+"menu.settings" = "設定...";
+"menu.check_update" = "アップデートを確認...";
+"menu.switch_section_%d" = "セクション %d に切り替え";
+
+/* ── Section Tab Bar ── */
+"section.new" = "新規セクション";
+"section.name_placeholder" = "セクション名";
+"section.delete_title" = "セクションを削除";
+"section.delete_msg_%@_%d" = "「%1$@」を削除しますか？ %2$d 件のタスクが完全に削除されます。";
+
+/* ── Content View ── */
+"task.add_placeholder" = "タスクを追加...";
+"task.search_placeholder" = "タスクを検索...";
+"task.name_placeholder" = "タスク名";
+"task.summary_%d_%d_%d_%d" = "%1$d 件 · %2$d 件進行中 · %3$d/%4$d 件完了";
+
+/* ── Shortcuts Panel ── */
+"shortcuts.title" = "ショートカット";
+"shortcuts.submit" = "確定";
+"shortcuts.cancel_edit" = "キャンセル / 編集終了";
+"shortcuts.double_click" = "タイトルをダブルクリック";
+"shortcuts.edit_title" = "タスク名を編集";
+
+/* ── Task Row ── */
+"task.log_placeholder" = "進捗を記録...";
+"task.view_all_%d" = "すべてのログを表示（%d 件）";
+"task.collapse" = "折りたたむ";
+"task.archive_title" = "アーカイブの確認";
+"task.archive" = "アーカイブ";
+"task.archive_msg_%@" = "「%@」をアーカイブしますか？";
+"task.delete_title" = "削除の確認";
+"task.delete_msg_%@" = "「%@」を削除しますか？";
+"task.delete_log_title" = "ログを削除";
+"task.no_logs" = "ログはまだありません";
+"task.delete_log_msg" = "このログを削除しますか？";
+"task.clear_deadline" = "期限をクリア";
+
+/* ── Archive Section ── */
+"archive.title" = "アーカイブ済み";
+"archive.restore" = "タスクを復元";
+"archive.delete_title" = "完全に削除";
+"archive.delete_msg" = "このタスクを完全に削除しますか？この操作は取り消せません。";
+
+/* ── Export Card ── */
+"export.task_count_%d" = "%d 件のタスク";
+
+/* ── Export Menu ── */
+"export.copy_clipboard" = "クリップボードにコピー";
+"export.desktop_image" = "デスクトップ画像として書き出す";
+"export.mobile_image" = "モバイル画像として書き出す";
+"export.add_calendar" = "カレンダーに追加";
+"export.remove_calendar" = "カレンダーから削除";
+
+/* ── Toast Messages ── */
+"toast.copied" = "クリップボードにコピーしました";
+"toast.exported" = "画像として書き出しました";
+"toast.export_fail_image" = "書き出し失敗：画像を作成できません";
+"toast.export_fail_png" = "書き出し失敗：PNGエンコードに失敗しました";
+"toast.export_fail_%@" = "書き出し失敗：%@";
+"toast.calendar_added_%d" = "%d 件のカレンダーイベントを追加しました";
+"toast.calendar_removed_%d" = "%d 件のカレンダーイベントを削除しました";
+"toast.save_failed" = "保存に失敗しました";
+
+/* ── Theme Picker ── */
+"theme.appearance" = "外観";
+"theme.auto" = "自動";
+
+/* ── Settings Window ── */
+"settings.title" = "設定";
+"settings.appearance" = "外観";
+"settings.update" = "アップデート";
+"settings.about" = "このアプリについて";
+"settings.language" = "言語";
+"settings.restart_hint" = "言語の変更を適用するには再起動が必要です";
+"settings.restart" = "今すぐ再起動";
+
+/* ── Update ── */
+"update.found_%@" = "新しいバージョン v%@ が利用可能です";
+"update.current_%@" = "現在のバージョン：v%@";
+"update.downloading_%d" = "ダウンロード中... %d%%";
+"update.auto" = "今すぐアップデート";
+"update.download" = "ダウンロード";
+"update.checking" = "アップデートを確認中...";
+"update.failed" = "確認に失敗しました";
+"update.retry" = "再試行";
+"update.latest" = "最新の状態です";
+"update.last_check_%@" = "最終確認：%@";
+"update.check" = "アップデートを確認";
+"update.new_version_%@" = "新しいバージョン v%@ が利用可能です";
+
+/* ── About ── */
+"about.name" = "Progress";
+"about.description" = "シンプルなmacOSタスク進捗トラッカー";
+"about.github" = "GitHub";
+"about.feedback" = "問題を報告";
+
+/* ── iCloud ── */
+"icloud.synced" = "iCloud Driveでデータを同期中";
+
+/* ── Error Messages ── */
+"error.invalid_url" = "無効なリクエストURL";
+"error.network_%@" = "ネットワークエラー：%@";
+"error.parse_version" = "バージョン情報を解析できません";
+"error.no_asset" = "ダウンロードアセットが見つかりません";
+"error.download_%@" = "ダウンロード失敗：%@";
+"error.download_no_file" = "ダウンロード失敗：一時ファイルがありません";
+"error.unzip" = "展開に失敗しました";
+"error.no_app" = "展開後にアプリが見つかりません";
+"error.install_%@" = "インストール失敗：%@";
+
+/* ── Calendar Picker ── */
+"calendar.month_year_%d_%d" = "%1$d年%2$d月";
+
+/* ── Calendar ── */
+"calendar.permission" = "システム設定でカレンダーへのアクセスを許可してください";
+"calendar.no_source" = "カレンダーソースが見つかりません";
+"calendar.create_fail" = "カレンダーの作成に失敗しました";
+"calendar.not_found" = "Progressカレンダーが見つかりません";
+"calendar.add_fail" = "カレンダーイベントの追加に失敗しました";
+"calendar.delete_fail" = "カレンダーイベントの削除に失敗しました";
+
+/* ── Default Data ── */
+"default.section" = "マイプロジェクト";
+"default.task1" = "Progressへようこそ";
+"default.task2" = "ログを追加してみよう";
+"default.task3" = "期限を設定する";
+"default.log1" = "タイトルをダブルクリックで編集、アイコンをクリックでステータス変更";
+"default.log2" = "タスク行にカーソルを合わせて + をクリックするとログを追加できます";
+"default.migrated" = "移行済み";
+
+/* ── Data Error ── */
+"data.corrupted" = "データファイルが破損していました。バックアップを作成し、デフォルトにリセットしました。";

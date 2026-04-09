@@ -36,7 +36,7 @@ struct ExportCardView: View {
                     Text(section.name).font(.system(size: s.titleSize, weight: .bold)).foregroundColor(theme.t1)
                 }
                 Spacer()
-                Text("\(section.tasks.count) 任务").font(.system(size: s == .desktop ? 11 : 13)).foregroundColor(theme.t3)
+                Text(L("export.task_count_%d", section.tasks.count)).font(.system(size: s == .desktop ? 11 : 13)).foregroundColor(theme.t3)
             }.padding(.horizontal, s.hPad).padding(.top, s == .desktop ? 24 : 28).padding(.bottom, 16)
 
             Rectangle().fill(theme.border).frame(height: 0.5).padding(.horizontal, s.hPad)

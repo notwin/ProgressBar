@@ -79,7 +79,7 @@ struct CalendarPicker: View {
                 Button(action: onClear) {
                     HStack(spacing: 6) {
                         Image(systemName: "xmark.circle.fill").font(.system(size: 13))
-                        Text("清除截止日期").font(.system(size: 13, weight: .medium))
+                        Text(L("task.clear_deadline")).font(.system(size: 13, weight: .medium))
                     }
                     .foregroundColor(theme.t3)
                     .frame(maxWidth: .infinity)
@@ -137,7 +137,7 @@ struct CalendarPicker: View {
         let c = calendar
         let year = c.component(.year, from: displayMonth)
         let month = c.component(.month, from: displayMonth)
-        return "\(year)年\(month)月"
+        return L("calendar.month_year_%d_%d", year, month)
     }
 
     func shiftMonth(_ delta: Int) {

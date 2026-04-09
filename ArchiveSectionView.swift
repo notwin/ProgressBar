@@ -21,7 +21,7 @@ struct ArchiveSectionView: View {
                         Image(systemName: "chevron.right")
                             .font(.system(size: 12, weight: .medium))
                             .rotationEffect(.degrees(expanded ? 90 : 0))
-                        Text("已归档").font(.system(size: 13, weight: .medium))
+                        Text(L("archive.title")).font(.system(size: 13, weight: .medium))
                         Text("\(archived.count)")
                             .font(.system(size: 12, weight: .bold))
                             .padding(.horizontal, 6).padding(.vertical, 1)
@@ -45,7 +45,7 @@ struct ArchiveSectionView: View {
                             }
                             Button(action: { state.restoreTask(task.id) }) {
                                 Image(systemName: "arrow.uturn.backward").font(.system(size: 12, weight: .medium)).foregroundColor(theme.t3)
-                            }.buttonStyle(.plain).help("恢复任务")
+                            }.buttonStyle(.plain).help(L("archive.restore"))
                             Button(action: { deleteId = task.id; showDeleteAlert = true }) {
                                 Image(systemName: "trash").font(.system(size: 12, weight: .medium)).foregroundColor(theme.red.opacity(0.6))
                             }.buttonStyle(.plain)
@@ -54,10 +54,10 @@ struct ArchiveSectionView: View {
                     }.transition(.opacity)
                 }
             }
-            .alert("确认永久删除", isPresented: $showDeleteAlert) {
-                Button("取消", role: .cancel) {}
-                Button("删除", role: .destructive) { if let id = deleteId { state.deleteArchivedTask(id) } }.keyboardShortcut(.defaultAction)
-            } message: { Text("确定永久删除此任务吗？此操作不可撤销。") }
+            .alert(L("archive.delete_title"), isPresented: $showDeleteAlert) {
+                Button(L("cancel"), role: .cancel) {}
+                Button(L("delete"), role: .destructive) { if let id = deleteId { state.deleteArchivedTask(id) } }.keyboardShortcut(.defaultAction)
+            } message: { Text(L("archive.delete_msg")) }
         }
     }
 }

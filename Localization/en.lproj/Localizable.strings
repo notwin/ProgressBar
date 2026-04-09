@@ -1,0 +1,164 @@
+/* ═══════════════════════════════════════════════════════════════════
+   English Localization
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Common ── */
+"cancel" = "Cancel";
+"delete" = "Delete";
+"ok" = "OK";
+"rename" = "Rename";
+"create" = "Create";
+
+/* ── Task Status ── */
+"status.pending" = "Pending";
+"status.in_progress" = "In Progress";
+"status.blocked" = "Blocked";
+"status.done" = "Done";
+
+/* ── Theme Names ── */
+"theme.obsidian" = "Obsidian";
+"theme.abyss" = "Abyss";
+"theme.sandstone" = "Sandstone";
+"theme.neon" = "Neon";
+"theme.frost" = "Frost";
+"theme.paper" = "Paper";
+
+/* ── Menu Bar ── */
+"menu.new_task" = "New Task";
+"menu.search_task" = "Search Tasks";
+"menu.copy_clipboard" = "Copy to Clipboard";
+"menu.export_image" = "Export Image";
+"menu.sync_calendar" = "Sync to Calendar";
+"menu.shortcuts" = "Keyboard Shortcuts";
+"menu.settings" = "Settings...";
+"menu.check_update" = "Check for Updates...";
+"menu.switch_section_%d" = "Switch to Section %d";
+
+/* ── Section Tab Bar ── */
+"section.new" = "New Section";
+"section.name_placeholder" = "Section name";
+"section.delete_title" = "Delete Section";
+"section.delete_msg_%@_%d" = "Delete \"%1$@\"? %2$d tasks will be permanently removed.";
+
+/* ── Content View ── */
+"task.add_placeholder" = "Add task...";
+"task.search_placeholder" = "Search tasks...";
+"task.name_placeholder" = "Task name";
+"task.summary_%d_%d_%d_%d" = "%1$d tasks · %2$d active · %3$d/%4$d done";
+
+/* ── Shortcuts Panel ── */
+"shortcuts.title" = "Shortcuts";
+"shortcuts.submit" = "Submit";
+"shortcuts.cancel_edit" = "Cancel / Exit edit";
+"shortcuts.double_click" = "Double-click title";
+"shortcuts.edit_title" = "Edit task name";
+
+/* ── Task Row ── */
+"task.log_placeholder" = "Log progress...";
+"task.view_all_%d" = "View all %d logs";
+"task.collapse" = "Collapse";
+"task.archive_title" = "Confirm Archive";
+"task.archive" = "Archive";
+"task.archive_msg_%@" = "Archive \"%@\"?";
+"task.delete_title" = "Confirm Delete";
+"task.delete_msg_%@" = "Delete \"%@\"?";
+"task.delete_log_title" = "Delete Log";
+"task.no_logs" = "No logs yet";
+"task.delete_log_msg" = "Delete this log entry?";
+"task.clear_deadline" = "Clear deadline";
+
+/* ── Archive Section ── */
+"archive.title" = "Archived";
+"archive.restore" = "Restore task";
+"archive.delete_title" = "Permanently Delete";
+"archive.delete_msg" = "Permanently delete this task? This cannot be undone.";
+
+/* ── Export Card ── */
+"export.task_count_%d" = "%d tasks";
+
+/* ── Export Menu ── */
+"export.copy_clipboard" = "Copy to Clipboard";
+"export.desktop_image" = "Export Desktop Image";
+"export.mobile_image" = "Export Mobile Image";
+"export.add_calendar" = "Add to Calendar";
+"export.remove_calendar" = "Remove from Calendar";
+
+/* ── Toast Messages ── */
+"toast.copied" = "Copied to clipboard";
+"toast.exported" = "Exported as image";
+"toast.export_fail_image" = "Export failed: unable to create image";
+"toast.export_fail_png" = "Export failed: unable to encode PNG";
+"toast.export_fail_%@" = "Export failed: %@";
+"toast.calendar_added_%d" = "Added %d calendar events";
+"toast.calendar_removed_%d" = "Removed %d calendar events";
+"toast.save_failed" = "Save Failed";
+
+/* ── Theme Picker ── */
+"theme.appearance" = "Appearance";
+"theme.auto" = "Auto";
+
+/* ── Settings Window ── */
+"settings.title" = "Settings";
+"settings.appearance" = "Appearance";
+"settings.update" = "Updates";
+"settings.about" = "About";
+"settings.language" = "Language";
+"settings.restart_hint" = "Restart required to apply language change";
+"settings.restart" = "Restart Now";
+
+/* ── Update ── */
+"update.found_%@" = "New version v%@ available";
+"update.current_%@" = "Current: v%@";
+"update.downloading_%d" = "Downloading... %d%%";
+"update.auto" = "Update Now";
+"update.download" = "Download";
+"update.checking" = "Checking for updates...";
+"update.failed" = "Check failed";
+"update.retry" = "Retry";
+"update.latest" = "Up to date";
+"update.last_check_%@" = "Last check: %@";
+"update.check" = "Check for Updates";
+"update.new_version_%@" = "New version v%@ available";
+
+/* ── About ── */
+"about.name" = "Progress";
+"about.description" = "A minimal macOS task progress tracker";
+"about.github" = "GitHub";
+"about.feedback" = "Report Issue";
+
+/* ── iCloud ── */
+"icloud.synced" = "Data synced via iCloud Drive";
+
+/* ── Error Messages ── */
+"error.invalid_url" = "Invalid request URL";
+"error.network_%@" = "Network error: %@";
+"error.parse_version" = "Unable to parse version info";
+"error.no_asset" = "No download asset found";
+"error.download_%@" = "Download failed: %@";
+"error.download_no_file" = "Download failed: no temporary file";
+"error.unzip" = "Extraction failed";
+"error.no_app" = "No app found after extraction";
+"error.install_%@" = "Installation failed: %@";
+
+/* ── Calendar Picker ── */
+"calendar.month_year_%d_%d" = "%2$d/%1$d";
+
+/* ── Calendar ── */
+"calendar.permission" = "Please grant calendar access in System Settings";
+"calendar.no_source" = "Unable to find calendar source";
+"calendar.create_fail" = "Failed to create calendar";
+"calendar.not_found" = "Progress calendar not found";
+"calendar.add_fail" = "Failed to add calendar event";
+"calendar.delete_fail" = "Failed to delete calendar event";
+
+/* ── Default Data ── */
+"default.section" = "My Project";
+"default.task1" = "Welcome to Progress";
+"default.task2" = "Try adding a log entry";
+"default.task3" = "Set a deadline";
+"default.log1" = "Double-click the title to edit, click the icon to change status";
+"default.log2" = "Hover over a task row and click + to add a log";
+"default.migrated" = "Migrated";
+
+/* ── Data Error ── */
+"data.corrupted" = "Data file was corrupted. Backed up and reset to defaults.";

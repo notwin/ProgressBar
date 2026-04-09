@@ -1,0 +1,4 @@
+CFBundleDisplayName = "進度條";
+CFBundleName = "進度條";
+NSCalendarsUsageDescription = "進度條需要存取您的行事曆，以便將有截止日期的任務同步到系統行事曆。";
+NSCalendarsFullAccessUsageDescription = "進度條需要完整存取您的行事曆，以便新增和刪除任務日程。";

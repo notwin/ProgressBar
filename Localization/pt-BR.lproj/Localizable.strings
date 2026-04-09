@@ -1,0 +1,164 @@
+/* ═══════════════════════════════════════════════════════════════════
+   Portuguese (Brazil) Localization
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Common ── */
+"cancel" = "Cancelar";
+"delete" = "Excluir";
+"ok" = "OK";
+"rename" = "Renomear";
+"create" = "Criar";
+
+/* ── Task Status ── */
+"status.pending" = "Pendente";
+"status.in_progress" = "Em andamento";
+"status.blocked" = "Bloqueado";
+"status.done" = "Concluído";
+
+/* ── Theme Names ── */
+"theme.obsidian" = "Obsidiana";
+"theme.abyss" = "Abismo";
+"theme.sandstone" = "Arenito";
+"theme.neon" = "Neon";
+"theme.frost" = "Gelo";
+"theme.paper" = "Papel";
+
+/* ── Menu Bar ── */
+"menu.new_task" = "Nova tarefa";
+"menu.search_task" = "Buscar tarefas";
+"menu.copy_clipboard" = "Copiar para a área de transferência";
+"menu.export_image" = "Exportar imagem";
+"menu.sync_calendar" = "Sincronizar com o calendário";
+"menu.shortcuts" = "Atalhos de teclado";
+"menu.settings" = "Configurações...";
+"menu.check_update" = "Verificar atualizações...";
+"menu.switch_section_%d" = "Alternar para a seção %d";
+
+/* ── Section Tab Bar ── */
+"section.new" = "Nova seção";
+"section.name_placeholder" = "Nome da seção";
+"section.delete_title" = "Excluir seção";
+"section.delete_msg_%@_%d" = "Excluir \"%1$@\"? %2$d tarefas serão removidas permanentemente.";
+
+/* ── Content View ── */
+"task.add_placeholder" = "Adicionar tarefa...";
+"task.search_placeholder" = "Buscar tarefas...";
+"task.name_placeholder" = "Nome da tarefa";
+"task.summary_%d_%d_%d_%d" = "%1$d tarefas · %2$d ativas · %3$d/%4$d concluídas";
+
+/* ── Shortcuts Panel ── */
+"shortcuts.title" = "Atalhos";
+"shortcuts.submit" = "Confirmar";
+"shortcuts.cancel_edit" = "Cancelar / Sair da edição";
+"shortcuts.double_click" = "Clique duplo no título";
+"shortcuts.edit_title" = "Editar nome da tarefa";
+
+/* ── Task Row ── */
+"task.log_placeholder" = "Registrar progresso...";
+"task.view_all_%d" = "Ver todos os %d registros";
+"task.collapse" = "Recolher";
+"task.archive_title" = "Confirmar arquivamento";
+"task.archive" = "Arquivar";
+"task.archive_msg_%@" = "Arquivar \"%@\"?";
+"task.delete_title" = "Confirmar exclusão";
+"task.delete_msg_%@" = "Excluir \"%@\"?";
+"task.delete_log_title" = "Excluir registro";
+"task.no_logs" = "Nenhum registro ainda";
+"task.delete_log_msg" = "Excluir este registro?";
+"task.clear_deadline" = "Limpar prazo";
+
+/* ── Archive Section ── */
+"archive.title" = "Arquivados";
+"archive.restore" = "Restaurar tarefa";
+"archive.delete_title" = "Excluir permanentemente";
+"archive.delete_msg" = "Excluir esta tarefa permanentemente? Essa ação não pode ser desfeita.";
+
+/* ── Export Card ── */
+"export.task_count_%d" = "%d tarefas";
+
+/* ── Export Menu ── */
+"export.copy_clipboard" = "Copiar para a área de transferência";
+"export.desktop_image" = "Exportar imagem para desktop";
+"export.mobile_image" = "Exportar imagem para celular";
+"export.add_calendar" = "Adicionar ao calendário";
+"export.remove_calendar" = "Remover do calendário";
+
+/* ── Toast Messages ── */
+"toast.copied" = "Copiado para a área de transferência";
+"toast.exported" = "Exportado como imagem";
+"toast.export_fail_image" = "Falha na exportação: não foi possível criar a imagem";
+"toast.export_fail_png" = "Falha na exportação: não foi possível codificar o PNG";
+"toast.export_fail_%@" = "Falha na exportação: %@";
+"toast.calendar_added_%d" = "%d eventos adicionados ao calendário";
+"toast.calendar_removed_%d" = "%d eventos removidos do calendário";
+"toast.save_failed" = "Falha ao salvar";
+
+/* ── Theme Picker ── */
+"theme.appearance" = "Aparência";
+"theme.auto" = "Automático";
+
+/* ── Settings Window ── */
+"settings.title" = "Configurações";
+"settings.appearance" = "Aparência";
+"settings.update" = "Atualizações";
+"settings.about" = "Sobre";
+"settings.language" = "Idioma";
+"settings.restart_hint" = "É necessário reiniciar para aplicar a mudança de idioma";
+"settings.restart" = "Reiniciar agora";
+
+/* ── Update ── */
+"update.found_%@" = "Nova versão v%@ disponível";
+"update.current_%@" = "Atual: v%@";
+"update.downloading_%d" = "Baixando... %d%%";
+"update.auto" = "Atualizar agora";
+"update.download" = "Baixar";
+"update.checking" = "Verificando atualizações...";
+"update.failed" = "Falha na verificação";
+"update.retry" = "Tentar novamente";
+"update.latest" = "Você está atualizado";
+"update.last_check_%@" = "Última verificação: %@";
+"update.check" = "Verificar atualizações";
+"update.new_version_%@" = "Nova versão v%@ disponível";
+
+/* ── About ── */
+"about.name" = "Progress";
+"about.description" = "Um rastreador de progresso de tarefas minimalista para macOS";
+"about.github" = "GitHub";
+"about.feedback" = "Relatar problema";
+
+/* ── iCloud ── */
+"icloud.synced" = "Dados sincronizados via iCloud Drive";
+
+/* ── Error Messages ── */
+"error.invalid_url" = "URL de solicitação inválida";
+"error.network_%@" = "Erro de rede: %@";
+"error.parse_version" = "Não foi possível analisar as informações da versão";
+"error.no_asset" = "Nenhum arquivo para download encontrado";
+"error.download_%@" = "Falha no download: %@";
+"error.download_no_file" = "Falha no download: arquivo temporário não encontrado";
+"error.unzip" = "Falha na extração";
+"error.no_app" = "Nenhum app encontrado após a extração";
+"error.install_%@" = "Falha na instalação: %@";
+
+/* ── Calendar Picker ── */
+"calendar.month_year_%d_%d" = "%2$d/%1$d";
+
+/* ── Calendar ── */
+"calendar.permission" = "Conceda acesso ao calendário nos Ajustes do Sistema";
+"calendar.no_source" = "Não foi possível encontrar a origem do calendário";
+"calendar.create_fail" = "Falha ao criar o calendário";
+"calendar.not_found" = "Calendário do Progress não encontrado";
+"calendar.add_fail" = "Falha ao adicionar evento ao calendário";
+"calendar.delete_fail" = "Falha ao excluir evento do calendário";
+
+/* ── Default Data ── */
+"default.section" = "Meu Projeto";
+"default.task1" = "Bem-vindo ao Progress";
+"default.task2" = "Tente adicionar um registro";
+"default.task3" = "Defina um prazo";
+"default.log1" = "Clique duplo no título para editar, clique no ícone para mudar o status";
+"default.log2" = "Passe o mouse sobre uma tarefa e clique em + para adicionar um registro";
+"default.migrated" = "Migrado";
+
+/* ── Data Error ── */
+"data.corrupted" = "O arquivo de dados estava corrompido. Um backup foi criado e os dados foram redefinidos para o padrão.";

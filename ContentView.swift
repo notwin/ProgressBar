@@ -48,7 +48,7 @@ struct ContentView: View {
                         .foregroundColor(addTaskFocused || !newTaskTitle.isEmpty ? theme.accent : theme.t3)
                     ZStack(alignment: .leading) {
                         if newTaskTitle.isEmpty {
-                            Text("添加任务...")
+                            Text(L("task.add_placeholder"))
                                 .font(.system(size: 14))
                                 .foregroundColor(addTaskFocused ? theme.t3.opacity(0.3) : theme.t3)
                                 .allowsHitTesting(false)
@@ -102,7 +102,7 @@ struct ContentView: View {
         }
         .onChange(of: state.triggerCalendarSync) { _, fire in
             if fire {
-                state.addToCalendar { count, err in flashToast(err ?? "已添加 \(count) 条日程") }
+                state.addToCalendar { count, err in flashToast(err ?? L("toast.calendar_added_%d", count)) }
                 state.triggerCalendarSync = false
             }
         }
@@ -118,11 +118,11 @@ struct ContentView: View {
                     .padding(.bottom, 24)
             }
         }
-        .alert("保存失败", isPresented: Binding(
+        .alert(L("toast.save_failed"), isPresented: Binding(
             get: { state.saveError != nil },
             set: { if !$0 { state.saveError = nil } }
         )) {
-            Button("确定") { state.saveError = nil }
+            Button(L("ok")) { state.saveError = nil }
         } message: {
             Text(state.saveError ?? "")
         }
@@ -150,7 +150,7 @@ struct ContentView: View {
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(theme.green.opacity(0.6))
                         .frame(width: 32, height: 32)
-                        .help("数据通过 iCloud Drive 自动同步")
+                        .help(L("icloud.synced"))
                 }
 
                 // 导出按钮
@@ -185,7 +185,7 @@ struct ContentView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .help("发现新版本 v\(updater.latestVersion ?? "")")
+                    .help(L("update.new_version_%@", updater.latestVersion ?? ""))
                 }
 
                 // 快捷键提示按钮
@@ -198,18 +198,18 @@ struct ContentView: View {
                 .buttonStyle(.plain)
                 .popover(isPresented: $showShortcutsPanel) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("快捷键").font(.system(size: 13, weight: .semibold)).foregroundColor(theme.t1)
+                        Text(L("shortcuts.title")).font(.system(size: 13, weight: .semibold)).foregroundColor(theme.t1)
                             .padding(.bottom, 4)
-                        shortcutRow("⌘ N", "新建任务")
-                        shortcutRow("⌘ F", "搜索任务")
-                        shortcutRow("⇧⌘ C", "复制到剪贴板")
-                        shortcutRow("⌘ E", "导出图片")
-                        shortcutRow("⇧⌘ S", "同步到日历")
-                        shortcutRow("⌘ /", "快捷键一览")
+                        shortcutRow("⌘ N", L("menu.new_task"))
+                        shortcutRow("⌘ F", L("menu.search_task"))
+                        shortcutRow("⇧⌘ C", L("menu.copy_clipboard"))
+                        shortcutRow("⌘ E", L("menu.export_image"))
+                        shortcutRow("⇧⌘ S", L("menu.sync_calendar"))
+                        shortcutRow("⌘ /", L("menu.shortcuts"))
                         Divider().padding(.vertical, 2)
-                        shortcutRow("Enter", "提交输入")
-                        shortcutRow("Esc", "取消/退出编辑")
-                        shortcutRow("双击标题", "编辑任务名称")
+                        shortcutRow("Enter", L("shortcuts.submit"))
+                        shortcutRow("Esc", L("shortcuts.cancel_edit"))
+                        shortcutRow(L("shortcuts.double_click"), L("shortcuts.edit_title"))
                     }.padding(12).frame(width: 200)
                 }
             }
@@ -225,7 +225,7 @@ struct ContentView: View {
                 .foregroundColor(searchFocused ? theme.accent : theme.t3)
             ZStack(alignment: .leading) {
                 if searchText.isEmpty {
-                    Text("搜索任务...")
+                    Text(L("task.search_placeholder"))
                         .font(.system(size: 14))
                         .foregroundColor(searchFocused ? theme.t3.opacity(0.3) : theme.t3)
                         .allowsHitTesting(false)
@@ -248,10 +248,10 @@ struct ContentView: View {
     // ── 导出菜单 ──
     private var exportMenu: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Button(action: { state.copyToClipboard(); showExportMenu = false; flashToast("已复制到剪贴板") }) {
+            Button(action: { state.copyToClipboard(); showExportMenu = false; flashToast(L("toast.copied")) }) {
                 HStack(spacing: 8) {
                     Image(systemName: "doc.on.clipboard").frame(width: 16)
-                    Text("复制到剪贴板")
+                    Text(L("export.copy_clipboard"))
                 }.font(.system(size: 13)).foregroundColor(theme.t1)
                 .padding(.horizontal, 10).padding(.vertical, 7)
                 .frame(maxWidth: .infinity, alignment: .leading).cornerRadius(6)
@@ -259,7 +259,7 @@ struct ContentView: View {
             Button(action: { showExportMenu = false; exportAsImage(style: .desktop) }) {
                 HStack(spacing: 8) {
                     Image(systemName: "desktopcomputer").frame(width: 16)
-                    Text("导出桌面版图片")
+                    Text(L("export.desktop_image"))
                 }.font(.system(size: 13)).foregroundColor(theme.t1)
                 .padding(.horizontal, 10).padding(.vertical, 7)
                 .frame(maxWidth: .infinity, alignment: .leading).cornerRadius(6)
@@ -267,24 +267,24 @@ struct ContentView: View {
             Button(action: { showExportMenu = false; exportAsImage(style: .mobile) }) {
                 HStack(spacing: 8) {
                     Image(systemName: "iphone").frame(width: 16)
-                    Text("导出手机版图片")
+                    Text(L("export.mobile_image"))
                 }.font(.system(size: 13)).foregroundColor(theme.t1)
                 .padding(.horizontal, 10).padding(.vertical, 7)
                 .frame(maxWidth: .infinity, alignment: .leading).cornerRadius(6)
             }.buttonStyle(.plain)
             Divider().padding(.vertical, 2)
-            Button(action: { showExportMenu = false; state.addToCalendar { count, err in flashToast(err ?? "已添加 \(count) 条日程") } }) {
+            Button(action: { showExportMenu = false; state.addToCalendar { count, err in flashToast(err ?? L("toast.calendar_added_%d", count)) } }) {
                 HStack(spacing: 8) {
                     Image(systemName: "calendar.badge.plus").frame(width: 16)
-                    Text("添加到日历")
+                    Text(L("export.add_calendar"))
                 }.font(.system(size: 13)).foregroundColor(theme.t1)
                 .padding(.horizontal, 10).padding(.vertical, 7)
                 .frame(maxWidth: .infinity, alignment: .leading).cornerRadius(6)
             }.buttonStyle(.plain)
-            Button(action: { showExportMenu = false; state.removeFromCalendar { count, err in flashToast(err ?? "已删除 \(count) 条日程") } }) {
+            Button(action: { showExportMenu = false; state.removeFromCalendar { count, err in flashToast(err ?? L("toast.calendar_removed_%d", count)) } }) {
                 HStack(spacing: 8) {
                     Image(systemName: "calendar.badge.minus").frame(width: 16)
-                    Text("从日历删除")
+                    Text(L("export.remove_calendar"))
                 }.font(.system(size: 13)).foregroundColor(theme.red)
                 .padding(.horizontal, 10).padding(.vertical, 7)
                 .frame(maxWidth: .infinity, alignment: .leading).cornerRadius(6)
@@ -310,7 +310,7 @@ struct ContentView: View {
         let total = s.tasks.count + s.archived.count
         let done = s.tasks.filter { $0.status == .done }.count + s.archived.count
         let active = s.tasks.filter { $0.status == .inProgress || $0.status == .blocked }.count
-        return "\(s.tasks.count) 任务 · \(active) 进行中 · \(done)/\(total) 完成"
+        return L("task.summary_%d_%d_%d_%d", s.tasks.count, active, done, total)
     }
 
     /// 提交新任务输入
@@ -355,7 +355,7 @@ struct ContentView: View {
 
         guard let rep = hostingView.bitmapImageRepForCachingDisplay(in: hostingView.bounds) else {
             offscreenWindow.orderOut(nil)
-            flashToast("导出失败：无法创建图像")
+            flashToast(L("toast.export_fail_image"))
             return
         }
         hostingView.cacheDisplay(in: hostingView.bounds, to: rep)
@@ -363,17 +363,17 @@ struct ContentView: View {
 
         let panel = NSSavePanel()
         panel.allowedContentTypes = [UTType.png]
-        panel.nameFieldStringValue = "进度条-\(sec.name).png"
+        panel.nameFieldStringValue = "\(L("about.name"))-\(sec.name).png"
         if panel.runModal() == .OK, let url = panel.url {
             guard let png = rep.representation(using: .png, properties: [:]) else {
-                flashToast("导出失败：无法编码 PNG")
+                flashToast(L("toast.export_fail_png"))
                 return
             }
             do {
                 try png.write(to: url)
-                flashToast("已导出为图片")
+                flashToast(L("toast.exported"))
             } catch {
-                flashToast("导出失败: \(error.localizedDescription)")
+                flashToast(L("toast.export_fail_%@", error.localizedDescription))
             }
         }
     }

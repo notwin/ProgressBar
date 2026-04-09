@@ -1,0 +1,4 @@
+CFBundleDisplayName = "Progress";
+CFBundleName = "Progress";
+NSCalendarsUsageDescription = "O Progress precisa de acesso ao calendário para sincronizar tarefas com prazos.";
+NSCalendarsFullAccessUsageDescription = "O Progress precisa de acesso total ao calendário para adicionar e remover eventos de tarefas.";

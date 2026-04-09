@@ -1,0 +1,164 @@
+/* ═══════════════════════════════════════════════════════════════════
+   Korean Localization
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Common ── */
+"cancel" = "취소";
+"delete" = "삭제";
+"ok" = "확인";
+"rename" = "이름 변경";
+"create" = "생성";
+
+/* ── Task Status ── */
+"status.pending" = "대기 중";
+"status.in_progress" = "진행 중";
+"status.blocked" = "차단됨";
+"status.done" = "완료";
+
+/* ── Theme Names ── */
+"theme.obsidian" = "옵시디언";
+"theme.abyss" = "어비스";
+"theme.sandstone" = "샌드스톤";
+"theme.neon" = "네온";
+"theme.frost" = "프로스트";
+"theme.paper" = "페이퍼";
+
+/* ── Menu Bar ── */
+"menu.new_task" = "새 작업";
+"menu.search_task" = "작업 검색";
+"menu.copy_clipboard" = "클립보드에 복사";
+"menu.export_image" = "이미지로 내보내기";
+"menu.sync_calendar" = "캘린더에 동기화";
+"menu.shortcuts" = "키보드 단축키";
+"menu.settings" = "설정...";
+"menu.check_update" = "업데이트 확인...";
+"menu.switch_section_%d" = "섹션 %d(으)로 전환";
+
+/* ── Section Tab Bar ── */
+"section.new" = "새 섹션";
+"section.name_placeholder" = "섹션 이름";
+"section.delete_title" = "섹션 삭제";
+"section.delete_msg_%@_%d" = "\"%1$@\"을(를) 삭제하시겠습니까? %2$d개의 작업이 영구적으로 삭제됩니다.";
+
+/* ── Content View ── */
+"task.add_placeholder" = "작업 추가...";
+"task.search_placeholder" = "작업 검색...";
+"task.name_placeholder" = "작업 이름";
+"task.summary_%d_%d_%d_%d" = "%1$d개 작업 · %2$d개 진행 중 · %3$d/%4$d개 완료";
+
+/* ── Shortcuts Panel ── */
+"shortcuts.title" = "단축키";
+"shortcuts.submit" = "확인";
+"shortcuts.cancel_edit" = "취소 / 편집 종료";
+"shortcuts.double_click" = "제목 더블 클릭";
+"shortcuts.edit_title" = "작업 이름 편집";
+
+/* ── Task Row ── */
+"task.log_placeholder" = "진행 상황 기록...";
+"task.view_all_%d" = "로그 %d개 모두 보기";
+"task.collapse" = "접기";
+"task.archive_title" = "보관 확인";
+"task.archive" = "보관";
+"task.archive_msg_%@" = "\"%@\"을(를) 보관하시겠습니까?";
+"task.delete_title" = "삭제 확인";
+"task.delete_msg_%@" = "\"%@\"을(를) 삭제하시겠습니까?";
+"task.delete_log_title" = "로그 삭제";
+"task.no_logs" = "아직 로그가 없습니다";
+"task.delete_log_msg" = "이 로그를 삭제하시겠습니까?";
+"task.clear_deadline" = "마감일 지우기";
+
+/* ── Archive Section ── */
+"archive.title" = "보관됨";
+"archive.restore" = "작업 복원";
+"archive.delete_title" = "영구 삭제";
+"archive.delete_msg" = "이 작업을 영구적으로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.";
+
+/* ── Export Card ── */
+"export.task_count_%d" = "%d개 작업";
+
+/* ── Export Menu ── */
+"export.copy_clipboard" = "클립보드에 복사";
+"export.desktop_image" = "데스크톱 이미지로 내보내기";
+"export.mobile_image" = "모바일 이미지로 내보내기";
+"export.add_calendar" = "캘린더에 추가";
+"export.remove_calendar" = "캘린더에서 제거";
+
+/* ── Toast Messages ── */
+"toast.copied" = "클립보드에 복사됨";
+"toast.exported" = "이미지로 내보냄";
+"toast.export_fail_image" = "내보내기 실패: 이미지를 생성할 수 없습니다";
+"toast.export_fail_png" = "내보내기 실패: PNG 인코딩에 실패했습니다";
+"toast.export_fail_%@" = "내보내기 실패: %@";
+"toast.calendar_added_%d" = "캘린더 이벤트 %d개 추가됨";
+"toast.calendar_removed_%d" = "캘린더 이벤트 %d개 제거됨";
+"toast.save_failed" = "저장 실패";
+
+/* ── Theme Picker ── */
+"theme.appearance" = "외관";
+"theme.auto" = "자동";
+
+/* ── Settings Window ── */
+"settings.title" = "설정";
+"settings.appearance" = "외관";
+"settings.update" = "업데이트";
+"settings.about" = "정보";
+"settings.language" = "언어";
+"settings.restart_hint" = "언어 변경을 적용하려면 재시작이 필요합니다";
+"settings.restart" = "지금 재시작";
+
+/* ── Update ── */
+"update.found_%@" = "새 버전 v%@을(를) 사용할 수 있습니다";
+"update.current_%@" = "현재 버전: v%@";
+"update.downloading_%d" = "다운로드 중... %d%%";
+"update.auto" = "지금 업데이트";
+"update.download" = "다운로드";
+"update.checking" = "업데이트 확인 중...";
+"update.failed" = "확인 실패";
+"update.retry" = "재시도";
+"update.latest" = "최신 상태입니다";
+"update.last_check_%@" = "마지막 확인: %@";
+"update.check" = "업데이트 확인";
+"update.new_version_%@" = "새 버전 v%@을(를) 사용할 수 있습니다";
+
+/* ── About ── */
+"about.name" = "Progress";
+"about.description" = "간결한 macOS 작업 진행 트래커";
+"about.github" = "GitHub";
+"about.feedback" = "문제 신고";
+
+/* ── iCloud ── */
+"icloud.synced" = "iCloud Drive를 통해 데이터 동기화 중";
+
+/* ── Error Messages ── */
+"error.invalid_url" = "잘못된 요청 URL";
+"error.network_%@" = "네트워크 오류: %@";
+"error.parse_version" = "버전 정보를 분석할 수 없습니다";
+"error.no_asset" = "다운로드 파일을 찾을 수 없습니다";
+"error.download_%@" = "다운로드 실패: %@";
+"error.download_no_file" = "다운로드 실패: 임시 파일 없음";
+"error.unzip" = "압축 해제 실패";
+"error.no_app" = "압축 해제 후 앱을 찾을 수 없습니다";
+"error.install_%@" = "설치 실패: %@";
+
+/* ── Calendar Picker ── */
+"calendar.month_year_%d_%d" = "%1$d년 %2$d월";
+
+/* ── Calendar ── */
+"calendar.permission" = "시스템 설정에서 캘린더 접근을 허용해 주세요";
+"calendar.no_source" = "캘린더 소스를 찾을 수 없습니다";
+"calendar.create_fail" = "캘린더 생성에 실패했습니다";
+"calendar.not_found" = "Progress 캘린더를 찾을 수 없습니다";
+"calendar.add_fail" = "캘린더 이벤트 추가에 실패했습니다";
+"calendar.delete_fail" = "캘린더 이벤트 삭제에 실패했습니다";
+
+/* ── Default Data ── */
+"default.section" = "내 프로젝트";
+"default.task1" = "Progress에 오신 것을 환영합니다";
+"default.task2" = "로그를 추가해 보세요";
+"default.task3" = "마감일 설정하기";
+"default.log1" = "제목을 더블 클릭하여 편집하고, 아이콘을 클릭하여 상태를 변경하세요";
+"default.log2" = "작업 행에 마우스를 올리고 +를 클릭하여 로그를 추가하세요";
+"default.migrated" = "마이그레이션 완료";
+
+/* ── Data Error ── */
+"data.corrupted" = "데이터 파일이 손상되었습니다. 백업을 생성하고 기본값으로 초기화했습니다.";

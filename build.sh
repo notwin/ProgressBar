@@ -46,6 +46,13 @@ fi
 cp "$SCRIPT_DIR/AppBundle/Contents/Info.plist" "$APP_PATH/Contents/Info.plist"
 cp "$SCRIPT_DIR/jindu" "$APP_PATH/Contents/MacOS/ProgressBar"
 
+echo "==> 复制本地化资源 ..."
+for lproj in "$SCRIPT_DIR/Localization/"*.lproj; do
+  lname="$(basename "$lproj")"
+  mkdir -p "$APP_PATH/Contents/Resources/$lname"
+  cp "$lproj/"*.strings "$APP_PATH/Contents/Resources/$lname/"
+done
+
 echo "==> Ad-hoc 签名 ..."
 codesign --force --sign - "$APP_PATH"
 

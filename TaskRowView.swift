@@ -46,18 +46,18 @@ struct TaskRowView: View {
         }
         .onDrop(of: [.text], delegate: TaskDropDelegate(taskId: task.id, state: state, isDragging: $isDragging))
         .onHover { h in withAnimation(.easeInOut(duration: 0.12)) { hovered = h } }
-        .alert("确认归档", isPresented: $showCompleteAlert) {
-            Button("取消", role: .cancel) {}
-            Button("归档") { state.completeTask(task.id) }.keyboardShortcut(.defaultAction)
-        } message: { Text("确定将「\(task.title)」归档吗？") }
-        .alert("确认删除", isPresented: $showDeleteAlert) {
-            Button("取消", role: .cancel) {}
-            Button("删除", role: .destructive) { state.deleteTask(task.id) }.keyboardShortcut(.defaultAction)
-        } message: { Text("确定删除「\(task.title)」吗？此操作不可撤销。") }
-        .alert("确认删除记录", isPresented: $showDeleteLogAlert) {
-            Button("取消", role: .cancel) {}
-            Button("删除", role: .destructive) { if let id = deleteLogId { state.deleteLog(task.id, logId: id) } }.keyboardShortcut(.defaultAction)
-        } message: { Text("确定删除这条进展记录吗？") }
+        .alert(L("task.archive_title"), isPresented: $showCompleteAlert) {
+            Button(L("cancel"), role: .cancel) {}
+            Button(L("task.archive")) { state.completeTask(task.id) }.keyboardShortcut(.defaultAction)
+        } message: { Text(L("task.archive_msg_%@", task.title)) }
+        .alert(L("task.delete_title"), isPresented: $showDeleteAlert) {
+            Button(L("cancel"), role: .cancel) {}
+            Button(L("delete"), role: .destructive) { state.deleteTask(task.id) }.keyboardShortcut(.defaultAction)
+        } message: { Text(L("task.delete_msg_%@", task.title)) }
+        .alert(L("task.delete_log_title"), isPresented: $showDeleteLogAlert) {
+            Button(L("cancel"), role: .cancel) {}
+            Button(L("delete"), role: .destructive) { if let id = deleteLogId { state.deleteLog(task.id, logId: id) } }.keyboardShortcut(.defaultAction)
+        } message: { Text(L("task.delete_log_msg")) }
         .popover(isPresented: $showDeadlinePicker, arrowEdge: .bottom) {
             CalendarPicker(
                 selectedDate: $pickedDate,
@@ -146,7 +146,7 @@ struct TaskRowView: View {
             Button(action: { showStatusMenu = false; showCompleteAlert = true }) {
                 HStack(spacing: 8) {
                     Image(systemName: "archivebox").font(.system(size: 14)).foregroundColor(theme.t3).frame(width: 18)
-                    Text("归档").font(.system(size: 13, weight: .medium)).foregroundColor(theme.t3)
+                    Text(L("task.archive")).font(.system(size: 13, weight: .medium)).foregroundColor(theme.t3)
                 }.padding(.horizontal, 10).padding(.vertical, 6).cornerRadius(6)
             }.buttonStyle(.plain)
         }.padding(8).frame(minWidth: 170)
@@ -182,12 +182,12 @@ struct TaskRowView: View {
     private var logSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             if task.logs.isEmpty {
-                Text("暂无进展记录").font(.system(size: 12)).foregroundColor(theme.t3).padding(.bottom, 8)
+                Text(L("task.no_logs")).font(.system(size: 12)).foregroundColor(theme.t3).padding(.bottom, 8)
             }
             let visibleLogs = showAllLogs ? task.logs : Array(task.logs.suffix(3))
             if task.logs.count > 3 && !showAllLogs {
                 Button(action: { withAnimation(.appFade) { showAllLogs = true } }) {
-                    Text("查看全部 \(task.logs.count) 条记录")
+                    Text(L("task.view_all_%d", task.logs.count))
                         .font(.system(size: 11, weight: .medium)).foregroundColor(theme.accent.opacity(0.7))
                 }.buttonStyle(.plain).padding(.bottom, 4)
             }
@@ -232,7 +232,7 @@ struct TaskRowView: View {
             }
             if task.logs.count > 3 && showAllLogs {
                 Button(action: { withAnimation(.appFade) { showAllLogs = false } }) {
-                    Text("收起").font(.system(size: 11, weight: .medium)).foregroundColor(theme.accent.opacity(0.7))
+                    Text(L("task.collapse")).font(.system(size: 11, weight: .medium)).foregroundColor(theme.accent.opacity(0.7))
                 }.buttonStyle(.plain).padding(.top, 4)
             }
             if showLogInput {
@@ -310,7 +310,7 @@ private struct LogInputView: View {
         HStack(spacing: 6) {
             ZStack(alignment: .leading) {
                 if logInput.isEmpty {
-                    Text("记录进展...").font(.system(size: 13))
+                    Text(L("task.log_placeholder")).font(.system(size: 13))
                         .foregroundColor(logInputFocused.wrappedValue ? theme.t3.opacity(0.3) : theme.t3)
                         .allowsHitTesting(false)
                 }
@@ -344,7 +344,7 @@ private struct EditableTitleView: View {
 
     var body: some View {
         if editingTitle {
-            TextField("", text: $editedTitle, prompt: Text("任务名称").foregroundColor(theme.t3))
+            TextField("", text: $editedTitle, prompt: Text(L("task.name_placeholder")).foregroundColor(theme.t3))
             .textFieldStyle(.plain).font(.system(size: 14, weight: .medium)).foregroundColor(theme.t1)
             .focused(titleInputFocused)
             .onAppear { DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { titleInputFocused.wrappedValue = true } }

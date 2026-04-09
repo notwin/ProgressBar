@@ -1,5 +1,7 @@
 <div align="center">
 
+[English](README_en.md) | 简体中文
+
 <h1>
 <img src="screenshots/icon.png" width="42" align="center" alt="icon">
 进度条
@@ -161,6 +163,7 @@ ProgressBar/
 ├── SectionTabBar.swift       # 分区标签栏
 ├── SettingsView.swift        # 设置窗口（外观·更新·关于）
 ├── ExportCardView.swift      # 导出渲染
+├── Localization/             # 多语言资源（zh-Hans, en）
 ├── build.sh                  # 一键编译部署
 └── mcp-server/               # MCP Server
 ```

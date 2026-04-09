@@ -1,0 +1,164 @@
+/* ═══════════════════════════════════════════════════════════════════
+   中文（简体）本地化
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── 通用 ── */
+"cancel" = "取消";
+"delete" = "删除";
+"ok" = "确定";
+"rename" = "重命名";
+"create" = "创建";
+
+/* ── 任务状态 ── */
+"status.pending" = "待开始";
+"status.in_progress" = "进行中";
+"status.blocked" = "已阻塞";
+"status.done" = "已完成";
+
+/* ── 主题名称 ── */
+"theme.obsidian" = "黑曜石";
+"theme.abyss" = "深渊";
+"theme.sandstone" = "砂岩";
+"theme.neon" = "霓虹";
+"theme.frost" = "霜冻";
+"theme.paper" = "纸墨";
+
+/* ── 菜单栏 ── */
+"menu.new_task" = "新建任务";
+"menu.search_task" = "搜索任务";
+"menu.copy_clipboard" = "复制到剪贴板";
+"menu.export_image" = "导出图片";
+"menu.sync_calendar" = "同步到日历";
+"menu.shortcuts" = "快捷键一览";
+"menu.settings" = "设置...";
+"menu.check_update" = "检查更新...";
+"menu.switch_section_%d" = "切换到分区 %d";
+
+/* ── 分区标签栏 ── */
+"section.new" = "新建分区";
+"section.name_placeholder" = "分区名称";
+"section.delete_title" = "确认删除分区";
+"section.delete_msg_%@_%d" = "确定删除「%1$@」？其中 %2$d 个任务将被永久删除。";
+
+/* ── 内容视图 ── */
+"task.add_placeholder" = "添加任务...";
+"task.search_placeholder" = "搜索任务...";
+"task.name_placeholder" = "任务名称";
+"task.summary_%d_%d_%d_%d" = "%1$d 任务 · %2$d 进行中 · %3$d/%4$d 完成";
+
+/* ── 快捷键面板 ── */
+"shortcuts.title" = "快捷键";
+"shortcuts.submit" = "提交输入";
+"shortcuts.cancel_edit" = "取消/退出编辑";
+"shortcuts.double_click" = "双击标题";
+"shortcuts.edit_title" = "编辑任务名称";
+
+/* ── 任务行 ── */
+"task.log_placeholder" = "记录进展...";
+"task.view_all_%d" = "查看全部 %d 条记录";
+"task.collapse" = "收起";
+"task.archive_title" = "确认归档";
+"task.archive" = "归档";
+"task.archive_msg_%@" = "确定将「%@」归档吗？";
+"task.delete_title" = "确认删除";
+"task.delete_msg_%@" = "确定删除「%@」吗？";
+"task.delete_log_title" = "确认删除记录";
+"task.no_logs" = "暂无进展记录";
+"task.delete_log_msg" = "确定删除这条进展记录吗？";
+"task.clear_deadline" = "清除截止日期";
+
+/* ── 归档区域 ── */
+"archive.title" = "已归档";
+"archive.restore" = "恢复任务";
+"archive.delete_title" = "确认永久删除";
+"archive.delete_msg" = "确定永久删除此任务吗？此操作不可撤销。";
+
+/* ── 导出卡片 ── */
+"export.task_count_%d" = "%d 任务";
+
+/* ── 导出菜单 ── */
+"export.copy_clipboard" = "复制到剪贴板";
+"export.desktop_image" = "导出桌面版图片";
+"export.mobile_image" = "导出手机版图片";
+"export.add_calendar" = "添加到日历";
+"export.remove_calendar" = "从日历删除";
+
+/* ── Toast 消息 ── */
+"toast.copied" = "已复制到剪贴板";
+"toast.exported" = "已导出为图片";
+"toast.export_fail_image" = "导出失败：无法创建图像";
+"toast.export_fail_png" = "导出失败：无法编码 PNG";
+"toast.export_fail_%@" = "导出失败: %@";
+"toast.calendar_added_%d" = "已添加 %d 条日程";
+"toast.calendar_removed_%d" = "已删除 %d 条日程";
+"toast.save_failed" = "保存失败";
+
+/* ── 主题选择器 ── */
+"theme.appearance" = "外观";
+"theme.auto" = "自动";
+
+/* ── 设置窗口 ── */
+"settings.title" = "设置";
+"settings.appearance" = "外观";
+"settings.update" = "更新";
+"settings.about" = "关于";
+"settings.language" = "语言";
+"settings.restart_hint" = "语言切换需要重启应用";
+"settings.restart" = "立即重启";
+
+/* ── 更新 ── */
+"update.found_%@" = "发现新版本 v%@";
+"update.current_%@" = "当前版本: v%@";
+"update.downloading_%d" = "正在下载... %d%%";
+"update.auto" = "自动更新";
+"update.download" = "前往下载";
+"update.checking" = "正在检查更新...";
+"update.failed" = "检查失败";
+"update.retry" = "重试";
+"update.latest" = "已是最新版本";
+"update.last_check_%@" = "上次检查: %@";
+"update.check" = "检查更新";
+"update.new_version_%@" = "发现新版本 v%@";
+
+/* ── 关于 ── */
+"about.name" = "进度条";
+"about.description" = "一个简洁的 macOS 任务进度管理工具";
+"about.github" = "GitHub";
+"about.feedback" = "反馈问题";
+
+/* ── iCloud ── */
+"icloud.synced" = "数据通过 iCloud Drive 自动同步";
+
+/* ── 错误消息 ── */
+"error.invalid_url" = "无效的请求地址";
+"error.network_%@" = "网络错误: %@";
+"error.parse_version" = "无法解析版本信息";
+"error.no_asset" = "未找到下载资源";
+"error.download_%@" = "下载失败: %@";
+"error.download_no_file" = "下载失败: 未获得临时文件";
+"error.unzip" = "解压失败";
+"error.no_app" = "解压后未找到应用";
+"error.install_%@" = "安装失败: %@";
+
+/* ── 日历选择器 ── */
+"calendar.month_year_%d_%d" = "%1$d年%2$d月";
+
+/* ── 日历 ── */
+"calendar.permission" = "请在系统设置中授权日历权限";
+"calendar.no_source" = "无法找到日历源";
+"calendar.create_fail" = "创建日历失败";
+"calendar.not_found" = "未找到进度条日历";
+"calendar.add_fail" = "添加日历事件失败";
+"calendar.delete_fail" = "删除日历事件失败";
+
+/* ── 默认数据 ── */
+"default.section" = "我的项目";
+"default.task1" = "欢迎使用进度条";
+"default.task2" = "试试添加一条跟进记录";
+"default.task3" = "设置截止日期";
+"default.log1" = "双击标题可以编辑，点击左侧图标切换状态";
+"default.log2" = "hover 任务行，点击 + 号添加记录";
+"default.migrated" = "已迁移";
+
+/* ── 数据错误 ── */
+"data.corrupted" = "数据文件已损坏，已备份并重置为默认数据";

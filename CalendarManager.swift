@@ -8,7 +8,7 @@ import SwiftUI
 @MainActor
 class CalendarManager {
     private let eventStore = EKEventStore()
-    private let calendarName = "进度条"
+    private var calendarName: String { L("about.name") }
     private let calendarTag = "progressbar:"
 
     /// 日历搜索范围常量
@@ -56,7 +56,7 @@ class CalendarManager {
                         eventStore.sources.first(where: { $0.sourceType == .local }) {
             calendar.source = source
         } else {
-            onError?("无法找到日历源")
+            onError?(L("calendar.no_source"))
             return nil
         }
         do {
@@ -140,9 +140,9 @@ class CalendarManager {
     /// 将所有有截止日期的任务添加到系统日历
     func addToCalendar(tasks: [TaskItem], completion: @escaping (Int, String?) -> Void) {
         requestCalendarAccess { [weak self] granted in
-            guard granted else { completion(0, "请在系统设置中授权日历权限"); return }
+            guard granted else { completion(0, L("calendar.permission")); return }
             guard let self = self else { completion(0, nil); return }
-            guard let cal = self.getOrCreateCalendar() else { completion(0, "无法创建日历"); return }
+            guard let cal = self.getOrCreateCalendar() else { completion(0, L("calendar.create_fail")); return }
             let tasksWithDeadline = tasks.filter { !$0.deadline.isEmpty }
             var count = 0
             for task in tasksWithDeadline {
@@ -173,9 +173,9 @@ class CalendarManager {
     /// 从系统日历删除所有「进度条」创建的事件
     func removeFromCalendar(completion: @escaping (Int, String?) -> Void) {
         requestCalendarAccess { [weak self] granted in
-            guard granted else { completion(0, "请在系统设置中授权日历权限"); return }
+            guard granted else { completion(0, L("calendar.permission")); return }
             guard let self = self else { completion(0, nil); return }
-            guard let cal = self.findCalendar() else { completion(0, "未找到进度条日历"); return }
+            guard let cal = self.findCalendar() else { completion(0, L("calendar.not_found")); return }
             let range = self.searchRange()
             let events = self.calendarEvents(in: cal, from: range.start, to: range.end)
             var count = 0

@@ -1,0 +1,164 @@
+/* ═══════════════════════════════════════════════════════════════════
+   Hindi Localization
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Common ── */
+"cancel" = "रद्द करें";
+"delete" = "हटाएँ";
+"ok" = "ठीक है";
+"rename" = "नाम बदलें";
+"create" = "बनाएँ";
+
+/* ── Task Status ── */
+"status.pending" = "लंबित";
+"status.in_progress" = "प्रगति में";
+"status.blocked" = "अवरुद्ध";
+"status.done" = "पूर्ण";
+
+/* ── Theme Names ── */
+"theme.obsidian" = "ऑब्सीडियन";
+"theme.abyss" = "अथाह";
+"theme.sandstone" = "बलुआ पत्थर";
+"theme.neon" = "नियॉन";
+"theme.frost" = "पाला";
+"theme.paper" = "कागज़";
+
+/* ── Menu Bar ── */
+"menu.new_task" = "नया कार्य";
+"menu.search_task" = "कार्य खोजें";
+"menu.copy_clipboard" = "क्लिपबोर्ड पर कॉपी करें";
+"menu.export_image" = "इमेज निर्यात करें";
+"menu.sync_calendar" = "कैलेंडर में सिंक करें";
+"menu.shortcuts" = "कीबोर्ड शॉर्टकट";
+"menu.settings" = "सेटिंग्स...";
+"menu.check_update" = "अपडेट जाँचें...";
+"menu.switch_section_%d" = "सेक्शन %d पर जाएँ";
+
+/* ── Section Tab Bar ── */
+"section.new" = "नया सेक्शन";
+"section.name_placeholder" = "सेक्शन का नाम";
+"section.delete_title" = "सेक्शन हटाएँ";
+"section.delete_msg_%@_%d" = "\"%1$@\" हटाएँ? %2$d कार्य स्थायी रूप से हटा दिए जाएँगे।";
+
+/* ── Content View ── */
+"task.add_placeholder" = "कार्य जोड़ें...";
+"task.search_placeholder" = "कार्य खोजें...";
+"task.name_placeholder" = "कार्य का नाम";
+"task.summary_%d_%d_%d_%d" = "%1$d कार्य · %2$d सक्रिय · %3$d/%4$d पूर्ण";
+
+/* ── Shortcuts Panel ── */
+"shortcuts.title" = "शॉर्टकट";
+"shortcuts.submit" = "सबमिट करें";
+"shortcuts.cancel_edit" = "रद्द करें / संपादन से बाहर निकलें";
+"shortcuts.double_click" = "शीर्षक पर डबल-क्लिक करें";
+"shortcuts.edit_title" = "कार्य का नाम संपादित करें";
+
+/* ── Task Row ── */
+"task.log_placeholder" = "प्रगति दर्ज करें...";
+"task.view_all_%d" = "सभी %d लॉग देखें";
+"task.collapse" = "संक्षिप्त करें";
+"task.archive_title" = "संग्रह की पुष्टि करें";
+"task.archive" = "संग्रह करें";
+"task.archive_msg_%@" = "\"%@\" को संग्रह करें?";
+"task.delete_title" = "हटाने की पुष्टि करें";
+"task.delete_msg_%@" = "\"%@\" हटाएँ?";
+"task.delete_log_title" = "लॉग हटाएँ";
+"task.no_logs" = "अभी तक कोई लॉग नहीं";
+"task.delete_log_msg" = "यह लॉग प्रविष्टि हटाएँ?";
+"task.clear_deadline" = "समय सीमा हटाएँ";
+
+/* ── Archive Section ── */
+"archive.title" = "संग्रहित";
+"archive.restore" = "कार्य पुनर्स्थापित करें";
+"archive.delete_title" = "स्थायी रूप से हटाएँ";
+"archive.delete_msg" = "इस कार्य को स्थायी रूप से हटाएँ? यह पूर्ववत नहीं किया जा सकता।";
+
+/* ── Export Card ── */
+"export.task_count_%d" = "%d कार्य";
+
+/* ── Export Menu ── */
+"export.copy_clipboard" = "क्लिपबोर्ड पर कॉपी करें";
+"export.desktop_image" = "डेस्कटॉप इमेज निर्यात करें";
+"export.mobile_image" = "मोबाइल इमेज निर्यात करें";
+"export.add_calendar" = "कैलेंडर में जोड़ें";
+"export.remove_calendar" = "कैलेंडर से हटाएँ";
+
+/* ── Toast Messages ── */
+"toast.copied" = "क्लिपबोर्ड पर कॉपी किया गया";
+"toast.exported" = "इमेज के रूप में निर्यात किया गया";
+"toast.export_fail_image" = "निर्यात विफल: इमेज बनाने में असमर्थ";
+"toast.export_fail_png" = "निर्यात विफल: PNG एन्कोड करने में असमर्थ";
+"toast.export_fail_%@" = "निर्यात विफल: %@";
+"toast.calendar_added_%d" = "%d कैलेंडर इवेंट जोड़े गए";
+"toast.calendar_removed_%d" = "%d कैलेंडर इवेंट हटाए गए";
+"toast.save_failed" = "सहेजना विफल";
+
+/* ── Theme Picker ── */
+"theme.appearance" = "दिखावट";
+"theme.auto" = "स्वचालित";
+
+/* ── Settings Window ── */
+"settings.title" = "सेटिंग्स";
+"settings.appearance" = "दिखावट";
+"settings.update" = "अपडेट";
+"settings.about" = "परिचय";
+"settings.language" = "भाषा";
+"settings.restart_hint" = "भाषा परिवर्तन लागू करने के लिए पुनः आरंभ करें";
+"settings.restart" = "अभी पुनः आरंभ करें";
+
+/* ── Update ── */
+"update.found_%@" = "नया संस्करण v%@ उपलब्ध है";
+"update.current_%@" = "वर्तमान: v%@";
+"update.downloading_%d" = "डाउनलोड हो रहा है... %d%%";
+"update.auto" = "अभी अपडेट करें";
+"update.download" = "डाउनलोड करें";
+"update.checking" = "अपडेट जाँच रहे हैं...";
+"update.failed" = "जाँच विफल";
+"update.retry" = "पुनः प्रयास करें";
+"update.latest" = "अद्यतित है";
+"update.last_check_%@" = "अंतिम जाँच: %@";
+"update.check" = "अपडेट जाँचें";
+"update.new_version_%@" = "नया संस्करण v%@ उपलब्ध है";
+
+/* ── About ── */
+"about.name" = "Progress";
+"about.description" = "macOS के लिए एक न्यूनतम कार्य प्रगति ट्रैकर";
+"about.github" = "GitHub";
+"about.feedback" = "समस्या रिपोर्ट करें";
+
+/* ── iCloud ── */
+"icloud.synced" = "डेटा iCloud Drive से सिंक किया गया";
+
+/* ── Error Messages ── */
+"error.invalid_url" = "अमान्य अनुरोध URL";
+"error.network_%@" = "नेटवर्क त्रुटि: %@";
+"error.parse_version" = "संस्करण जानकारी पार्स करने में असमर्थ";
+"error.no_asset" = "कोई डाउनलोड एसेट नहीं मिला";
+"error.download_%@" = "डाउनलोड विफल: %@";
+"error.download_no_file" = "डाउनलोड विफल: कोई अस्थायी फ़ाइल नहीं";
+"error.unzip" = "निष्कर्षण विफल";
+"error.no_app" = "निष्कर्षण के बाद कोई ऐप नहीं मिला";
+"error.install_%@" = "इंस्टॉलेशन विफल: %@";
+
+/* ── Calendar Picker ── */
+"calendar.month_year_%d_%d" = "%2$d/%1$d";
+
+/* ── Calendar ── */
+"calendar.permission" = "कृपया सिस्टम सेटिंग्स में कैलेंडर एक्सेस दें";
+"calendar.no_source" = "कैलेंडर स्रोत नहीं मिला";
+"calendar.create_fail" = "कैलेंडर बनाने में विफल";
+"calendar.not_found" = "Progress कैलेंडर नहीं मिला";
+"calendar.add_fail" = "कैलेंडर इवेंट जोड़ने में विफल";
+"calendar.delete_fail" = "कैलेंडर इवेंट हटाने में विफल";
+
+/* ── Default Data ── */
+"default.section" = "मेरा प्रोजेक्ट";
+"default.task1" = "Progress में आपका स्वागत है";
+"default.task2" = "एक लॉग प्रविष्टि जोड़कर देखें";
+"default.task3" = "एक समय सीमा निर्धारित करें";
+"default.log1" = "शीर्षक संपादित करने के लिए डबल-क्लिक करें, स्थिति बदलने के लिए आइकन पर क्लिक करें";
+"default.log2" = "कार्य पंक्ति पर होवर करें और लॉग जोड़ने के लिए + पर क्लिक करें";
+"default.migrated" = "माइग्रेट किया गया";
+
+/* ── Data Error ── */
+"data.corrupted" = "डेटा फ़ाइल दूषित थी। बैकअप लेकर डिफ़ॉल्ट पर रीसेट किया गया।";

@@ -95,7 +95,7 @@ class AppState: ObservableObject {
             createDefaults()
         case .corrupted(let data):
             persistence.backupCorruptedData(data)
-            saveError = "数据文件已损坏，已备份并重置为默认数据"
+            saveError = L("data.corrupted")
             createDefaults()
         }
     }
@@ -108,11 +108,11 @@ class AppState: ObservableObject {
             // 迁移截止日期格式
             t.deadline = migrateDeadlineFormat(t.deadline)
             if t.status == .done {
-                t.completedAt = "已迁移"
+                t.completedAt = L("default.migrated")
                 archived.append(t)
             } else { active.append(t) }
         }
-        let sec = TaskSection(id: generateID(), name: "默认", tasks: active, archived: archived)
+        let sec = TaskSection(id: generateID(), name: L("default.section"), tasks: active, archived: archived)
         sections = [sec]
         activeSectionId = sec.id
         // 迁移旧版主题设置
@@ -124,7 +124,7 @@ class AppState: ObservableObject {
 
     /// 创建默认分区和示例任务
     func createDefaults() {
-        let sec = TaskSection(id: generateID(), name: "默认", tasks: defaultTasks(), archived: [])
+        let sec = TaskSection(id: generateID(), name: L("default.section"), tasks: defaultTasks(), archived: [])
         sections = [sec]
         activeSectionId = sec.id
         themeId = "obsidian"
@@ -159,11 +159,11 @@ class AppState: ObservableObject {
     func defaultTasks() -> [TaskItem] {
         let date = today()
         return [
-            TaskItem(id: generateID(), title: "欢迎使用进度条", status: .done, deadline: "",
-                logs: [LogEntry(id: generateID(), date: date, text: "双击标题可以编辑，点击左侧图标切换状态")], completedAt: nil),
-            TaskItem(id: generateID(), title: "试试添加一条跟进记录", status: .inProgress, deadline: "",
-                logs: [LogEntry(id: generateID(), date: date, text: "hover 任务行，点击 + 号添加记录")], completedAt: nil),
-            TaskItem(id: generateID(), title: "设置截止日期", status: .pending, deadline: "",
+            TaskItem(id: generateID(), title: L("default.task1"), status: .done, deadline: "",
+                logs: [LogEntry(id: generateID(), date: date, text: L("default.log1"))], completedAt: nil),
+            TaskItem(id: generateID(), title: L("default.task2"), status: .inProgress, deadline: "",
+                logs: [LogEntry(id: generateID(), date: date, text: L("default.log2"))], completedAt: nil),
+            TaskItem(id: generateID(), title: L("default.task3"), status: .pending, deadline: "",
                 logs: [], completedAt: nil),
         ]
     }
@@ -296,7 +296,7 @@ class AppState: ObservableObject {
     }
 
     /// 阻塞关键词
-    private static let blockedKeywords = ["卡点", "延迟", "阻塞", "等待", "卡住", "暂停", "blocked"]
+    private static let blockedKeywords = ["卡点", "延迟", "阻塞", "等待", "卡住", "暂停", "blocked", "stuck", "waiting", "paused"]
 
     /// 为任务添加进展日志，并自动推断状态
     func addLog(_ taskId: String, text: String) {
@@ -370,7 +370,7 @@ class AppState: ObservableObject {
         let done = section.tasks.filter { $0.status == .done }.count
         let active = section.tasks.filter { $0.status == .inProgress || $0.status == .blocked }.count
 
-        var out = "📊 \(section.name)  \(done)/\(total) 完成 · \(active) 进行中\n\n"
+        var out = "📊 \(section.name)  \(L("task.summary_%d_%d_%d_%d", total, active, done, total))\n\n"
         for (i, t) in section.tasks.enumerated() {
             let icon = icons[t.status] ?? "◻️"
             let dl = t.deadline.isEmpty ? "" : "  → \(deadlineDisplay(t.deadline))"

@@ -51,7 +51,7 @@ class UpdateChecker: ObservableObject {
         let urlString = "https://api.github.com/repos/\(repo)/releases/latest"
         guard let url = URL(string: urlString) else {
             isChecking = false
-            checkError = "无效的请求地址"
+            checkError = L("error.invalid_url")
             return
         }
 
@@ -66,13 +66,13 @@ class UpdateChecker: ObservableObject {
                 self.lastCheckDate = Date()
 
                 if let error {
-                    self.checkError = "网络错误: \(error.localizedDescription)"
+                    self.checkError = L("error.network_%@", error.localizedDescription)
                     return
                 }
                 guard let data,
                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                       let tagName = json["tag_name"] as? String else {
-                    self.checkError = "无法解析版本信息"
+                    self.checkError = L("error.parse_version")
                     return
                 }
 
@@ -100,7 +100,7 @@ class UpdateChecker: ObservableObject {
     /// 自动更新：下载 → 解压 → 替换 → 重启
     func performUpdate() {
         guard let urlString = assetURL, let url = URL(string: urlString) else {
-            updateError = "未找到下载资源"
+            updateError = L("error.no_asset")
             return
         }
         guard !isDownloading else { return }
@@ -119,11 +119,11 @@ class UpdateChecker: ObservableObject {
                 self.isDownloading = false
 
                 if let error {
-                    self.updateError = "下载失败: \(error.localizedDescription)"
+                    self.updateError = L("error.download_%@", error.localizedDescription)
                     return
                 }
                 guard let tempURL else {
-                    self.updateError = "下载失败: 未获得临时文件"
+                    self.updateError = L("error.download_no_file")
                     return
                 }
                 self.installUpdate(from: tempURL)
@@ -160,7 +160,7 @@ class UpdateChecker: ObservableObject {
             unzipProcess.waitUntilExit()
 
             guard unzipProcess.terminationStatus == 0 else {
-                updateError = "解压失败"
+                updateError = L("error.unzip")
                 try? fm.removeItem(at: tempDir)
                 return
             }
@@ -168,7 +168,7 @@ class UpdateChecker: ObservableObject {
             // 找到解压后的 .app
             let contents = try fm.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil)
             guard let newApp = contents.first(where: { $0.pathExtension == "app" }) else {
-                updateError = "解压后未找到应用"
+                updateError = L("error.no_app")
                 try? fm.removeItem(at: tempDir)
                 return
             }
@@ -200,7 +200,7 @@ class UpdateChecker: ObservableObject {
             NSApp.terminate(nil)
 
         } catch {
-            updateError = "安装失败: \(error.localizedDescription)"
+            updateError = L("error.install_%@", error.localizedDescription)
             try? fm.removeItem(at: tempDir)
         }
     }

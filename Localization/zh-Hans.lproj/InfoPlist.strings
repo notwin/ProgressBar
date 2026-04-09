@@ -1,0 +1,4 @@
+CFBundleDisplayName = "进度条";
+CFBundleName = "进度条";
+NSCalendarsUsageDescription = "进度条需要访问您的日历，以便将有截止日期的任务同步到系统日历。";
+NSCalendarsFullAccessUsageDescription = "进度条需要完全访问您的日历，以便添加和删除任务日程。";

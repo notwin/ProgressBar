@@ -1,0 +1,164 @@
+/* ═══════════════════════════════════════════════════════════════════
+   中文（繁體）本地化
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── 通用 ── */
+"cancel" = "取消";
+"delete" = "刪除";
+"ok" = "確定";
+"rename" = "重新命名";
+"create" = "建立";
+
+/* ── 任務狀態 ── */
+"status.pending" = "待開始";
+"status.in_progress" = "進行中";
+"status.blocked" = "已阻塞";
+"status.done" = "已完成";
+
+/* ── 主題名稱 ── */
+"theme.obsidian" = "黑曜石";
+"theme.abyss" = "深淵";
+"theme.sandstone" = "砂岩";
+"theme.neon" = "霓虹";
+"theme.frost" = "霜凍";
+"theme.paper" = "紙墨";
+
+/* ── 選單列 ── */
+"menu.new_task" = "新增任務";
+"menu.search_task" = "搜尋任務";
+"menu.copy_clipboard" = "複製到剪貼簿";
+"menu.export_image" = "匯出圖片";
+"menu.sync_calendar" = "同步到行事曆";
+"menu.shortcuts" = "快捷鍵一覽";
+"menu.settings" = "設定...";
+"menu.check_update" = "檢查更新...";
+"menu.switch_section_%d" = "切換到分區 %d";
+
+/* ── 分區標籤列 ── */
+"section.new" = "新增分區";
+"section.name_placeholder" = "分區名稱";
+"section.delete_title" = "確認刪除分區";
+"section.delete_msg_%@_%d" = "確定刪除「%1$@」？其中 %2$d 個任務將被永久刪除。";
+
+/* ── 內容視圖 ── */
+"task.add_placeholder" = "新增任務...";
+"task.search_placeholder" = "搜尋任務...";
+"task.name_placeholder" = "任務名稱";
+"task.summary_%d_%d_%d_%d" = "%1$d 任務 · %2$d 進行中 · %3$d/%4$d 完成";
+
+/* ── 快捷鍵面板 ── */
+"shortcuts.title" = "快捷鍵";
+"shortcuts.submit" = "提交輸入";
+"shortcuts.cancel_edit" = "取消/退出編輯";
+"shortcuts.double_click" = "雙擊標題";
+"shortcuts.edit_title" = "編輯任務名稱";
+
+/* ── 任務列 ── */
+"task.log_placeholder" = "記錄進展...";
+"task.view_all_%d" = "檢視全部 %d 條記錄";
+"task.collapse" = "收合";
+"task.archive_title" = "確認歸檔";
+"task.archive" = "歸檔";
+"task.archive_msg_%@" = "確定將「%@」歸檔嗎？";
+"task.delete_title" = "確認刪除";
+"task.delete_msg_%@" = "確定刪除「%@」嗎？";
+"task.delete_log_title" = "確認刪除記錄";
+"task.no_logs" = "暫無進展記錄";
+"task.delete_log_msg" = "確定刪除這條進展記錄嗎？";
+"task.clear_deadline" = "清除截止日期";
+
+/* ── 歸檔區域 ── */
+"archive.title" = "已歸檔";
+"archive.restore" = "恢復任務";
+"archive.delete_title" = "確認永久刪除";
+"archive.delete_msg" = "確定永久刪除此任務嗎？此操作不可撤銷。";
+
+/* ── 匯出卡片 ── */
+"export.task_count_%d" = "%d 任務";
+
+/* ── 匯出選單 ── */
+"export.copy_clipboard" = "複製到剪貼簿";
+"export.desktop_image" = "匯出桌面版圖片";
+"export.mobile_image" = "匯出手機版圖片";
+"export.add_calendar" = "新增到行事曆";
+"export.remove_calendar" = "從行事曆刪除";
+
+/* ── Toast 訊息 ── */
+"toast.copied" = "已複製到剪貼簿";
+"toast.exported" = "已匯出為圖片";
+"toast.export_fail_image" = "匯出失敗：無法建立圖像";
+"toast.export_fail_png" = "匯出失敗：無法編碼 PNG";
+"toast.export_fail_%@" = "匯出失敗: %@";
+"toast.calendar_added_%d" = "已新增 %d 條日程";
+"toast.calendar_removed_%d" = "已刪除 %d 條日程";
+"toast.save_failed" = "儲存失敗";
+
+/* ── 主題選擇器 ── */
+"theme.appearance" = "外觀";
+"theme.auto" = "自動";
+
+/* ── 設定視窗 ── */
+"settings.title" = "設定";
+"settings.appearance" = "外觀";
+"settings.update" = "更新";
+"settings.about" = "關於";
+"settings.language" = "語言";
+"settings.restart_hint" = "語言切換需要重新啟動應用程式";
+"settings.restart" = "立即重啟";
+
+/* ── 更新 ── */
+"update.found_%@" = "發現新版本 v%@";
+"update.current_%@" = "目前版本: v%@";
+"update.downloading_%d" = "正在下載... %d%%";
+"update.auto" = "自動更新";
+"update.download" = "前往下載";
+"update.checking" = "正在檢查更新...";
+"update.failed" = "檢查失敗";
+"update.retry" = "重試";
+"update.latest" = "已是最新版本";
+"update.last_check_%@" = "上次檢查: %@";
+"update.check" = "檢查更新";
+"update.new_version_%@" = "發現新版本 v%@";
+
+/* ── 關於 ── */
+"about.name" = "進度條";
+"about.description" = "一個簡潔的 macOS 任務進度管理工具";
+"about.github" = "GitHub";
+"about.feedback" = "回報問題";
+
+/* ── iCloud ── */
+"icloud.synced" = "資料透過 iCloud Drive 自動同步";
+
+/* ── 錯誤訊息 ── */
+"error.invalid_url" = "無效的請求位址";
+"error.network_%@" = "網路錯誤: %@";
+"error.parse_version" = "無法解析版本資訊";
+"error.no_asset" = "未找到下載資源";
+"error.download_%@" = "下載失敗: %@";
+"error.download_no_file" = "下載失敗: 未獲得暫存檔案";
+"error.unzip" = "解壓縮失敗";
+"error.no_app" = "解壓縮後未找到應用程式";
+"error.install_%@" = "安裝失敗: %@";
+
+/* ── 日曆選擇器 ── */
+"calendar.month_year_%d_%d" = "%1$d年%2$d月";
+
+/* ── 日曆 ── */
+"calendar.permission" = "請在系統設定中授權行事曆權限";
+"calendar.no_source" = "無法找到行事曆來源";
+"calendar.create_fail" = "建立行事曆失敗";
+"calendar.not_found" = "未找到進度條行事曆";
+"calendar.add_fail" = "新增行事曆事件失敗";
+"calendar.delete_fail" = "刪除行事曆事件失敗";
+
+/* ── 預設資料 ── */
+"default.section" = "我的專案";
+"default.task1" = "歡迎使用進度條";
+"default.task2" = "試試新增一條跟進記錄";
+"default.task3" = "設定截止日期";
+"default.log1" = "雙擊標題可以編輯，點擊左側圖示切換狀態";
+"default.log2" = "hover 任務列，點擊 + 號新增記錄";
+"default.migrated" = "已遷移";
+
+/* ── 資料錯誤 ── */
+"data.corrupted" = "資料檔案已損壞，已備份並重設為預設資料";

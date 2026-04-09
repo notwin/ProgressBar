@@ -1,0 +1,4 @@
+CFBundleDisplayName = "Progress";
+CFBundleName = "Progress";
+NSCalendarsUsageDescription = "Progressはタスクの期限をカレンダーと同期するために、カレンダーへのアクセスが必要です。";
+NSCalendarsFullAccessUsageDescription = "Progressはタスクイベントの追加と削除のために、カレンダーへのフルアクセスが必要です。";

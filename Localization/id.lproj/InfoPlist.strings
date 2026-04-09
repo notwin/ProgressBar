@@ -1,0 +1,4 @@
+CFBundleDisplayName = "Progress";
+CFBundleName = "Progress";
+NSCalendarsUsageDescription = "Progress memerlukan akses ke kalender Anda untuk menyinkronkan tugas yang memiliki tenggat waktu.";
+NSCalendarsFullAccessUsageDescription = "Progress memerlukan akses penuh ke kalender untuk menambah dan menghapus acara tugas.";
