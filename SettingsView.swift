@@ -134,7 +134,7 @@ struct SettingsView: View {
             updateTab.tabItem { Label(L("settings.update"), systemImage: "arrow.triangle.2.circlepath") }.tag(SettingsTab.update)
             aboutTab.tabItem { Label(L("settings.about"), systemImage: "info.circle") }.tag(SettingsTab.about)
         }
-        .frame(width: 460, height: 480)
+        .frame(width: 420, height: 360)
     }
 
     // ── 外观 ──
