@@ -24,10 +24,12 @@ final class SettingsWindowController {
             backing: .buffered,
             defer: false
         )
+        let size = NSSize(width: 420, height: 360)
         w.title = L("settings.title")
         w.contentView = hostingView
-        w.setFrameAutosaveName("")
-        w.setContentSize(NSSize(width: 420, height: 360))
+        w.setContentSize(size)
+        w.contentMinSize = size
+        w.contentMaxSize = size
         w.center()
         w.isReleasedWhenClosed = false
 
