@@ -102,7 +102,7 @@ struct ContentView: View {
         }
         .onChange(of: state.triggerCalendarSync) { _, fire in
             if fire {
-                state.addToCalendar { count, err in flashToast(err ?? L("toast.calendar_added_%d", count)) }
+                state.addToCalendar { count, err in flashToast(err ?? L("toast.calendar_synced_%d", count)) }
                 state.triggerCalendarSync = false
             }
         }
@@ -152,6 +152,23 @@ struct ContentView: View {
                         .frame(width: 32, height: 32)
                         .help(L("icloud.synced"))
                 }
+
+                // 日历同步按钮
+                Button(action: {
+                    if state.syncedTaskIds.isEmpty {
+                        state.addToCalendar { count, err in flashToast(err ?? L("toast.calendar_synced_%d", count)) }
+                    } else {
+                        state.removeFromCalendar { count, err in flashToast(err ?? L("toast.calendar_removed_%d", count)) }
+                    }
+                }) {
+                    Image(systemName: state.syncedTaskIds.isEmpty ? "calendar.badge.plus" : "calendar.badge.checkmark")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(state.syncedTaskIds.isEmpty ? theme.t3 : theme.green.opacity(0.6))
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(state.syncedTaskIds.isEmpty ? L("export.sync_calendar") : L("export.unsync_calendar"))
 
                 // 导出按钮
                 Button(action: { showExportMenu.toggle() }) {
@@ -269,23 +286,6 @@ struct ContentView: View {
                     Image(systemName: "iphone").frame(width: 16)
                     Text(L("export.mobile_image"))
                 }.font(.system(size: 13)).foregroundColor(theme.t1)
-                .padding(.horizontal, 10).padding(.vertical, 7)
-                .frame(maxWidth: .infinity, alignment: .leading).cornerRadius(6)
-            }.buttonStyle(.plain)
-            Divider().padding(.vertical, 2)
-            Button(action: { showExportMenu = false; state.addToCalendar { count, err in flashToast(err ?? L("toast.calendar_added_%d", count)) } }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "calendar.badge.plus").frame(width: 16)
-                    Text(L("export.add_calendar"))
-                }.font(.system(size: 13)).foregroundColor(theme.t1)
-                .padding(.horizontal, 10).padding(.vertical, 7)
-                .frame(maxWidth: .infinity, alignment: .leading).cornerRadius(6)
-            }.buttonStyle(.plain)
-            Button(action: { showExportMenu = false; state.removeFromCalendar { count, err in flashToast(err ?? L("toast.calendar_removed_%d", count)) } }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "calendar.badge.minus").frame(width: 16)
-                    Text(L("export.remove_calendar"))
-                }.font(.system(size: 13)).foregroundColor(theme.red)
                 .padding(.horizontal, 10).padding(.vertical, 7)
                 .frame(maxWidth: .infinity, alignment: .leading).cornerRadius(6)
             }.buttonStyle(.plain)

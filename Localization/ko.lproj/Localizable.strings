@@ -80,8 +80,8 @@
 "export.copy_clipboard" = "클립보드에 복사";
 "export.desktop_image" = "데스크톱 이미지로 내보내기";
 "export.mobile_image" = "모바일 이미지로 내보내기";
-"export.add_calendar" = "캘린더에 추가";
-"export.remove_calendar" = "캘린더에서 제거";
+"export.sync_calendar" = "캘린더와 동기화";
+"export.unsync_calendar" = "캘린더 동기화 해제";
 
 /* ── Toast Messages ── */
 "toast.copied" = "클립보드에 복사됨";
@@ -89,7 +89,7 @@
 "toast.export_fail_image" = "내보내기 실패: 이미지를 생성할 수 없습니다";
 "toast.export_fail_png" = "내보내기 실패: PNG 인코딩에 실패했습니다";
 "toast.export_fail_%@" = "내보내기 실패: %@";
-"toast.calendar_added_%d" = "캘린더 이벤트 %d개 추가됨";
+"toast.calendar_synced_%d" = "%d개의 캘린더 이벤트 동기화됨";
 "toast.calendar_removed_%d" = "캘린더 이벤트 %d개 제거됨";
 "toast.save_failed" = "저장 실패";
 

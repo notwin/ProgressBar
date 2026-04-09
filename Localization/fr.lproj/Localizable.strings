@@ -80,8 +80,8 @@
 "export.copy_clipboard" = "Copier dans le presse-papiers";
 "export.desktop_image" = "Exporter en image bureau";
 "export.mobile_image" = "Exporter en image mobile";
-"export.add_calendar" = "Ajouter au calendrier";
-"export.remove_calendar" = "Retirer du calendrier";
+"export.sync_calendar" = "Synchroniser avec le calendrier";
+"export.unsync_calendar" = "Désynchroniser le calendrier";
 
 /* ── Toast Messages ── */
 "toast.copied" = "Copié dans le presse-papiers";
@@ -89,7 +89,7 @@
 "toast.export_fail_image" = "Échec de l'export : impossible de créer l'image";
 "toast.export_fail_png" = "Échec de l'export : impossible d'encoder en PNG";
 "toast.export_fail_%@" = "Échec de l'export : %@";
-"toast.calendar_added_%d" = "%d événements ajoutés au calendrier";
+"toast.calendar_synced_%d" = "%d événements synchronisés";
 "toast.calendar_removed_%d" = "%d événements retirés du calendrier";
 "toast.save_failed" = "Échec de l'enregistrement";
 

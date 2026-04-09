@@ -80,8 +80,8 @@
 "export.copy_clipboard" = "Salin ke Papan Klip";
 "export.desktop_image" = "Ekspor Gambar Desktop";
 "export.mobile_image" = "Ekspor Gambar Mobile";
-"export.add_calendar" = "Tambahkan ke Kalender";
-"export.remove_calendar" = "Hapus dari Kalender";
+"export.sync_calendar" = "Sinkronkan ke Kalender";
+"export.unsync_calendar" = "Batalkan Sinkronisasi Kalender";
 
 /* ── Toast Messages ── */
 "toast.copied" = "Disalin ke papan klip";
@@ -89,7 +89,7 @@
 "toast.export_fail_image" = "Ekspor gagal: tidak dapat membuat gambar";
 "toast.export_fail_png" = "Ekspor gagal: tidak dapat mengenkode PNG";
 "toast.export_fail_%@" = "Ekspor gagal: %@";
-"toast.calendar_added_%d" = "%d acara kalender ditambahkan";
+"toast.calendar_synced_%d" = "%d acara kalender disinkronkan";
 "toast.calendar_removed_%d" = "%d acara kalender dihapus";
 "toast.save_failed" = "Gagal Menyimpan";
 

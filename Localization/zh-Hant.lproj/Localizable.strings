@@ -80,8 +80,8 @@
 "export.copy_clipboard" = "複製到剪貼簿";
 "export.desktop_image" = "匯出桌面版圖片";
 "export.mobile_image" = "匯出手機版圖片";
-"export.add_calendar" = "新增到行事曆";
-"export.remove_calendar" = "從行事曆刪除";
+"export.sync_calendar" = "同步到行事曆";
+"export.unsync_calendar" = "解除行事曆同步";
 
 /* ── Toast 訊息 ── */
 "toast.copied" = "已複製到剪貼簿";
@@ -89,7 +89,7 @@
 "toast.export_fail_image" = "匯出失敗：無法建立圖像";
 "toast.export_fail_png" = "匯出失敗：無法編碼 PNG";
 "toast.export_fail_%@" = "匯出失敗: %@";
-"toast.calendar_added_%d" = "已新增 %d 條日程";
+"toast.calendar_synced_%d" = "已同步 %d 條日程";
 "toast.calendar_removed_%d" = "已刪除 %d 條日程";
 "toast.save_failed" = "儲存失敗";
 

@@ -80,8 +80,8 @@
 "export.copy_clipboard" = "クリップボードにコピー";
 "export.desktop_image" = "デスクトップ画像として書き出す";
 "export.mobile_image" = "モバイル画像として書き出す";
-"export.add_calendar" = "カレンダーに追加";
-"export.remove_calendar" = "カレンダーから削除";
+"export.sync_calendar" = "カレンダーと同期";
+"export.unsync_calendar" = "カレンダー同期を解除";
 
 /* ── Toast Messages ── */
 "toast.copied" = "クリップボードにコピーしました";
@@ -89,7 +89,7 @@
 "toast.export_fail_image" = "書き出し失敗：画像を作成できません";
 "toast.export_fail_png" = "書き出し失敗：PNGエンコードに失敗しました";
 "toast.export_fail_%@" = "書き出し失敗：%@";
-"toast.calendar_added_%d" = "%d 件のカレンダーイベントを追加しました";
+"toast.calendar_synced_%d" = "%d 件のカレンダーイベントを同期しました";
 "toast.calendar_removed_%d" = "%d 件のカレンダーイベントを削除しました";
 "toast.save_failed" = "保存に失敗しました";
 

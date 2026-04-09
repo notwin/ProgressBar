@@ -80,8 +80,8 @@
 "export.copy_clipboard" = "क्लिपबोर्ड पर कॉपी करें";
 "export.desktop_image" = "डेस्कटॉप इमेज निर्यात करें";
 "export.mobile_image" = "मोबाइल इमेज निर्यात करें";
-"export.add_calendar" = "कैलेंडर में जोड़ें";
-"export.remove_calendar" = "कैलेंडर से हटाएँ";
+"export.sync_calendar" = "कैलेंडर में सिंक करें";
+"export.unsync_calendar" = "कैलेंडर सिंक हटाएँ";
 
 /* ── Toast Messages ── */
 "toast.copied" = "क्लिपबोर्ड पर कॉपी किया गया";
@@ -89,7 +89,7 @@
 "toast.export_fail_image" = "निर्यात विफल: इमेज बनाने में असमर्थ";
 "toast.export_fail_png" = "निर्यात विफल: PNG एन्कोड करने में असमर्थ";
 "toast.export_fail_%@" = "निर्यात विफल: %@";
-"toast.calendar_added_%d" = "%d कैलेंडर इवेंट जोड़े गए";
+"toast.calendar_synced_%d" = "%d कैलेंडर इवेंट सिंक किए";
 "toast.calendar_removed_%d" = "%d कैलेंडर इवेंट हटाए गए";
 "toast.save_failed" = "सहेजना विफल";
 

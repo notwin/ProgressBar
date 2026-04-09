@@ -10,6 +10,7 @@ import AppKit
 final class SettingsWindowController {
     static let shared = SettingsWindowController()
     private var window: NSWindow?
+    private var keyMonitor: Any?
 
     func open(state: AppState, updater: UpdateChecker, tab: SettingsTab = .appearance) {
         if let w = window, w.isVisible {
@@ -27,16 +28,20 @@ final class SettingsWindowController {
         w.contentView = hostingView
         w.center()
         w.isReleasedWhenClosed = false
-        // 支持 ⌘W 关闭窗口
-        let closeItem = NSMenuItem(title: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
-        closeItem.keyEquivalentModifierMask = .command
-        if let fileMenu = NSApp.mainMenu?.item(withTitle: "File")?.submenu ??
-           NSApp.mainMenu?.items.first(where: { $0.submenu?.items.contains(where: { $0.keyEquivalent == "n" }) ?? false })?.submenu {
-            if !fileMenu.items.contains(where: { $0.keyEquivalent == "w" }) {
-                fileMenu.addItem(NSMenuItem.separator())
-                fileMenu.addItem(closeItem)
+
+        // ⌘W 关闭设置窗口
+        if keyMonitor == nil {
+            keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "w" {
+                    if let w = self?.window, w.isKeyWindow {
+                        w.close()
+                        return nil
+                    }
+                }
+                return event
             }
         }
+
         w.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         window = w
