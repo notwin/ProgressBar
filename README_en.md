@@ -144,6 +144,8 @@ Supported operations: list sections, list tasks, create tasks, update status, ad
 | **Calendar** | EventKit |
 | **Build** | `swiftc` CLI compilation, no Xcode project needed |
 | **Data** | JSON + iCloud Drive sync |
+| **i18n** | 13 languages (EN/ZH/JA/KO/FR/DE/IT/ES/PT/HI/ID) |
+| **CI/CD** | GitHub Actions auto build & release |
 | **Minimum OS** | macOS 14.0 Sonoma |
 
 <br>
@@ -163,8 +165,10 @@ ProgressBar/
 ├── SectionTabBar.swift       # Section tab bar
 ├── SettingsView.swift        # Settings window (Appearance · Update · About)
 ├── ExportCardView.swift      # Export rendering
-├── Localization/             # i18n strings (zh-Hans, en)
-├── build.sh                  # One-command build & deploy
+├── Localization/             # i18n strings (13 languages)
+├── build.sh                  # One-command build & deploy (dev)
+├── release.sh                # One-command release script
+├── .github/workflows/        # CI auto build & release
 └── mcp-server/               # MCP Server
 ```
 

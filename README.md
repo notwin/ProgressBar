@@ -144,6 +144,8 @@ cd mcp-server && npm install && npx tsc
 | **日历** | EventKit |
 | **构建** | `swiftc` 命令行直接编译，无需 Xcode 工程 |
 | **数据** | JSON + iCloud Drive 同步 |
+| **国际化** | 13 种语言（中/英/日/韩/法/德/意/西/葡/印地/印尼） |
+| **CI/CD** | GitHub Actions 自动编译发布 |
 | **最低系统** | macOS 14.0 Sonoma |
 
 <br>
@@ -163,8 +165,10 @@ ProgressBar/
 ├── SectionTabBar.swift       # 分区标签栏
 ├── SettingsView.swift        # 设置窗口（外观·更新·关于）
 ├── ExportCardView.swift      # 导出渲染
-├── Localization/             # 多语言资源（zh-Hans, en）
-├── build.sh                  # 一键编译部署
+├── Localization/             # 多语言资源（13 种语言）
+├── build.sh                  # 一键编译部署（开发用）
+├── release.sh                # 一键发版脚本
+├── .github/workflows/        # CI 自动编译发布
 └── mcp-server/               # MCP Server
 ```
 
