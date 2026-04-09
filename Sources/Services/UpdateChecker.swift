@@ -244,7 +244,7 @@ class UpdateChecker: ObservableObject {
             process.standardError = FileHandle.nullDevice
             try process.run()
 
-            NSApp.terminate(nil)
+            exit(0)
 
         } catch {
             updateError = L("error.install_%@", error.localizedDescription)
