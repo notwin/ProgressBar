@@ -12,7 +12,7 @@ jobs:
   build-and-release:
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -86,7 +86,7 @@ jobs:
           echo "$NOTES" > /tmp/release_notes.md
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: v${{ steps.version.outputs.version }}
           body_path: /tmp/release_notes.md
