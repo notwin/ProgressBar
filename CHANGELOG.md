@@ -18,7 +18,7 @@ All notable changes to this project will be documented in this file.
 ## [4.5] - 2026-04-09
 
 ### Added
-- 国际化支持 13 种语言（简体中文、繁體中文、English、Français、Deutsch、हिन्दी、Indonesia、Italiano、日本語、한국어、Português、Español × 2）
+- 国际化支持 12 种语言（简体中文、繁體中文、English、Français、हिन्दी、Indonesia、Italiano、日本語、한국어、Português、Español × 2）
 - 设置窗口新增语言切换标签页
 - 英文 README (README_en.md)
 

@@ -164,8 +164,8 @@ struct CalendarPicker: View {
            let prevRange = c.range(of: .day, in: .month, for: prevMonth) {
             let prevDays = Array(prevRange)
             for i in (prevDays.count - weekdayOfFirst)..<prevDays.count {
-                let d = c.date(from: DateComponents(year: c.component(.year, from: prevMonth),
-                    month: c.component(.month, from: prevMonth), day: prevDays[i]))!
+                guard let d = c.date(from: DateComponents(year: c.component(.year, from: prevMonth),
+                    month: c.component(.month, from: prevMonth), day: prevDays[i])) else { continue }
                 days.append(DayInfo(number: prevDays[i], date: d, isCurrentMonth: false,
                     isToday: c.isDate(d, inSameDayAs: today), isSelected: c.isDate(d, inSameDayAs: selectedDate)))
             }
@@ -173,8 +173,8 @@ struct CalendarPicker: View {
 
         // 当月
         for day in range {
-            let d = c.date(from: DateComponents(year: c.component(.year, from: displayMonth),
-                month: c.component(.month, from: displayMonth), day: day))!
+            guard let d = c.date(from: DateComponents(year: c.component(.year, from: displayMonth),
+                month: c.component(.month, from: displayMonth), day: day)) else { continue }
             days.append(DayInfo(number: day, date: d, isCurrentMonth: true,
                 isToday: c.isDate(d, inSameDayAs: today), isSelected: c.isDate(d, inSameDayAs: selectedDate)))
         }
@@ -185,8 +185,8 @@ struct CalendarPicker: View {
             let fill = 7 - remainder
             if let nextMonth = c.date(byAdding: .month, value: 1, to: firstOfMonth) {
                 for day in 1...fill {
-                    let d = c.date(from: DateComponents(year: c.component(.year, from: nextMonth),
-                        month: c.component(.month, from: nextMonth), day: day))!
+                    guard let d = c.date(from: DateComponents(year: c.component(.year, from: nextMonth),
+                        month: c.component(.month, from: nextMonth), day: day)) else { continue }
                     days.append(DayInfo(number: day, date: d, isCurrentMonth: false,
                         isToday: c.isDate(d, inSameDayAs: today), isSelected: c.isDate(d, inSameDayAs: selectedDate)))
                 }
