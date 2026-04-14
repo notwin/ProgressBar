@@ -316,7 +316,12 @@ private struct LogInputView: View {
                 }
                 TextField("", text: $logInput)
                     .textFieldStyle(.plain).font(.system(size: 13)).foregroundColor(theme.t1)
-                    .focused(logInputFocused).onSubmit { onSubmit() }.onAppear { logInputFocused.wrappedValue = true }
+                    .focused(logInputFocused).onSubmit { onSubmit() }
+                    .task {
+                        // 等动画完成（appFast=0.12s）再请求焦点，否则视图未装入 window 会丢
+                        try? await Task.sleep(nanoseconds: 150_000_000)
+                        logInputFocused.wrappedValue = true
+                    }
             }
             .padding(.horizontal, 8).padding(.vertical, 5).background(theme.bg).cornerRadius(5)
             Button(action: onSubmit) {
