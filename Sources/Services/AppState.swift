@@ -192,6 +192,14 @@ class AppState: ObservableObject {
         save()
     }
 
+    /// 循环切换到下一个/上一个分区（direction: +1 下一个，-1 上一个）
+    func cycleSection(_ direction: Int) {
+        guard !sections.isEmpty,
+              let idx = sections.firstIndex(where: { $0.id == activeSectionId }) else { return }
+        let next = ((idx + direction) % sections.count + sections.count) % sections.count
+        switchToSection(at: next)
+    }
+
     /// 删除分区
     func deleteSection(_ id: String) {
         withAnimation(.appSpring) {
@@ -206,6 +214,12 @@ class AppState: ObservableObject {
     /// 添加新任务到当前分区
     func addTask(title: String) {
         guard let i = activeSectionIndex else { return }
+        addTask(title: title, to: sections[i].id)
+    }
+
+    /// 添加新任务到指定分区（供悬浮窗跨分区添加）
+    func addTask(title: String, to sectionId: String) {
+        guard let i = sections.firstIndex(where: { $0.id == sectionId }) else { return }
         let t = TaskItem(id: generateID(), title: title, status: .pending, deadline: "", logs: [], completedAt: nil)
         withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) { sections[i].tasks.insert(t, at: 0) }
         save()
@@ -302,7 +316,12 @@ class AppState: ObservableObject {
 
     /// 为任务添加进展日志，并自动推断状态
     func addLog(_ taskId: String, text: String) {
-        guard let si = activeSectionIndex,
+        addLog(taskId, in: activeSectionId, text: text)
+    }
+
+    /// 给指定分区中的指定任务加进展（供悬浮窗跨分区操作）
+    func addLog(_ taskId: String, in sectionId: String, text: String) {
+        guard let si = sections.firstIndex(where: { $0.id == sectionId }),
               let ti = sections[si].tasks.firstIndex(where: { $0.id == taskId }) else { return }
         let log = LogEntry(id: generateID(), date: today(), text: text)
         withAnimation(.appSpring) {

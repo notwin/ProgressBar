@@ -16,11 +16,14 @@ swiftc \
   "$SRC/Models/Models.swift" "$SRC/Models/Theme.swift" \
   "$SRC/Services/PersistenceManager.swift" "$SRC/Services/CalendarManager.swift" \
   "$SRC/Services/AppState.swift" "$SRC/Services/UpdateChecker.swift" \
+  "$SRC/Services/HotKeyConfig.swift" "$SRC/Services/HotKeyManager.swift" \
+  "$SRC/Services/StatusBarController.swift" \
   "$SRC/Views/CalendarPicker.swift" "$SRC/Views/SectionTabBar.swift" \
   "$SRC/Views/TaskRowView.swift" "$SRC/Views/ArchiveSectionView.swift" \
   "$SRC/Views/ThemePickerView.swift" "$SRC/Views/SettingsView.swift" \
   "$SRC/Views/ExportCardView.swift" "$SRC/Views/ContentView.swift" \
-  "$SRC/App/ProgressBarApp.swift" \
+  "$SRC/Views/QuickInputView.swift" \
+  "$SRC/App/ProgressBarApp.swift" "$SRC/App/QuickInputWindowController.swift" \
   -parse-as-library \
   -O -whole-module-optimization \
   -framework SwiftUI \
@@ -28,6 +31,7 @@ swiftc \
   -framework QuartzCore \
   -framework UniformTypeIdentifiers \
   -framework EventKit \
+  -framework Carbon \
   -o "$ROOT_DIR/jindu"
 
 echo "==> 关闭正在运行的应用 ..."

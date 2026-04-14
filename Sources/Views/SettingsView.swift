@@ -3,9 +3,10 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import SwiftUI
+import Carbon.HIToolbox
 
 enum SettingsTab: Hashable {
-    case appearance, language, update, about
+    case appearance, language, shortcuts, update, about
 }
 
 struct LanguageOption: Identifiable {
@@ -137,6 +138,7 @@ struct SettingsView: View {
         TabView(selection: $selectedTab) {
             appearanceTab.tabItem { Label(L("settings.appearance"), systemImage: "paintbrush") }.tag(SettingsTab.appearance)
             languageTab.tabItem { Label(L("settings.language"), systemImage: "globe") }.tag(SettingsTab.language)
+            shortcutsTab.tabItem { Label(L("settings.shortcuts"), systemImage: "keyboard") }.tag(SettingsTab.shortcuts)
             updateTab.tabItem { Label(L("settings.update"), systemImage: "arrow.triangle.2.circlepath") }.tag(SettingsTab.update)
             aboutTab.tabItem { Label(L("settings.about"), systemImage: "info.circle") }.tag(SettingsTab.about)
         }
@@ -292,6 +294,11 @@ struct SettingsView: View {
         .onAppear { updater.checkForUpdates() }
     }
 
+    // ── 快捷键 ──
+    private var shortcutsTab: some View {
+        ShortcutsTabView()
+    }
+
     // ── 关于 ──
     private var aboutTab: some View {
         VStack(spacing: 12) {
@@ -334,3 +341,110 @@ struct SettingsView: View {
         .padding(20)
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// 快捷键标签页（录制 + 重置）
+// ═══════════════════════════════════════════════════════════════════
+
+private struct ShortcutsTabView: View {
+    @State private var config: HotKeyConfig = HotKeyConfig.load()
+    @State private var recording = false
+    @State private var recordMonitor: Any?
+    @State private var errorMessage: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(L("settings.shortcuts.quick_input"))
+                .font(.system(size: 13, weight: .semibold))
+
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(recording ? Color.accentColor.opacity(0.12) : Color.secondary.opacity(0.08))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(recording ? Color.accentColor : Color.secondary.opacity(0.25), lineWidth: 1)
+                        )
+                    Text(recording ? L("settings.shortcuts.recording") : config.displayString)
+                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                        .foregroundColor(recording ? .accentColor : .primary)
+                }
+                .frame(width: 180, height: 36)
+                .onTapGesture { startRecording() }
+
+                Button(recording ? L("cancel") : L("settings.shortcuts.record")) {
+                    recording ? stopRecording() : startRecording()
+                }
+                .buttonStyle(.bordered)
+
+                Button(L("settings.shortcuts.reset_default")) {
+                    apply(.default)
+                }
+                .buttonStyle(.bordered)
+            }
+
+            if let err = errorMessage {
+                Text(err)
+                    .font(.system(size: 12))
+                    .foregroundColor(.red)
+            }
+
+            Text(L("settings.shortcuts.hint"))
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+
+            Spacer()
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .onDisappear { stopRecording() }
+    }
+
+    private func startRecording() {
+        stopRecording()
+        errorMessage = nil
+        recording = true
+        recordMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let keyCode = UInt32(event.keyCode)
+            // 过滤纯修饰符键（单按 Shift/Cmd 等不应作为主键）
+            if HotKeyConfig.isModifierKeyCode(keyCode) { return nil }
+            let mods = HotKeyConfig.carbonMods(from: event.modifierFlags)
+            // 必须带有 Cmd/Control/Option 之一，避免无修饰符导致全局劫持单键
+            let required = UInt32(cmdKey | controlKey | optionKey)
+            if mods & required == 0 {
+                errorMessage = L("settings.shortcuts.need_modifier")
+                return nil
+            }
+            let newCfg = HotKeyConfig(keyCode: keyCode, carbonMods: mods)
+            apply(newCfg)
+            return nil
+        }
+    }
+
+    private func stopRecording() {
+        if let m = recordMonitor {
+            NSEvent.removeMonitor(m)
+            recordMonitor = nil
+        }
+        recording = false
+    }
+
+    private func apply(_ newCfg: HotKeyConfig) {
+        stopRecording()
+        let status = HotKeyManager.shared.register(config: newCfg) {
+            QuickInputWindowController.shared.toggle()
+        }
+        if status == noErr {
+            config = newCfg
+            newCfg.save()
+            errorMessage = nil
+        } else {
+            // 回退：重新注册旧的
+            HotKeyManager.shared.register(config: config) {
+                QuickInputWindowController.shared.toggle()
+            }
+            errorMessage = L("settings.shortcuts.conflict")
+        }
+    }
+}
+

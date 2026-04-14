@@ -5,6 +5,70 @@
 import SwiftUI
 import AppKit
 
+/// 拦截主窗口关闭：改为 orderOut，让 app 留在后台（菜单栏图标/热键继续工作）
+@MainActor
+final class MainWindowCloseHandler: NSObject, NSWindowDelegate {
+    static let shared = MainWindowCloseHandler()
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        sender.orderOut(nil)
+        return false
+    }
+}
+
+/// SwiftUI → 抓取包裹它的 NSWindow，用于挂 delegate / 引用保存
+struct WindowAccessor: NSViewRepresentable {
+    let onWindow: (NSWindow) -> Void
+    func makeNSView(context: Context) -> NSView {
+        let v = NSView()
+        DispatchQueue.main.async {
+            if let w = v.window { onWindow(w) }
+        }
+        return v
+    }
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+/// AppDelegate：禁止最后一个窗口关闭时退出 app
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+}
+
+/// 集中做启动后初始化（主窗口拦截、菜单栏图标、悬浮窗注入 state、热键注册）
+@MainActor
+final class AppSetup {
+    static let shared = AppSetup()
+    private var didSetup = false
+    weak var mainWindow: NSWindow?
+    private var notificationObserver: NSObjectProtocol?
+
+    func setup(state: AppState, updater: UpdateChecker, window: NSWindow) {
+        mainWindow = window
+        window.delegate = MainWindowCloseHandler.shared
+
+        if didSetup { return }
+        didSetup = true
+
+        QuickInputWindowController.shared.configure(state: state)
+
+        StatusBarController.shared.install { [weak self] in self?.mainWindow }
+
+        // 注册默认热键（第 4 步之前做个 stub；等 Settings tab 录入时会覆盖）
+        HotKeyManager.shared.register(config: HotKeyConfig.load()) {
+            QuickInputWindowController.shared.toggle()
+        }
+
+        // 菜单栏 → 打开设置
+        notificationObserver = NotificationCenter.default.addObserver(
+            forName: .openSettingsFromStatusBar, object: nil, queue: .main
+        ) { [weak state, weak updater] _ in
+            guard let state = state, let updater = updater else { return }
+            Task { @MainActor in
+                SettingsWindowController.shared.open(state: state, updater: updater)
+            }
+        }
+    }
+}
+
 /// 设置窗口管理
 @MainActor
 final class SettingsWindowController {
@@ -57,6 +121,7 @@ final class SettingsWindowController {
 
 @main
 struct ProgressBarApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var state = AppState()
     @StateObject private var updater = UpdateChecker()
 
@@ -64,6 +129,9 @@ struct ProgressBarApp: App {
         WindowGroup(L("about.name")) {
             ContentView(state: state, updater: updater)
                 .frame(minWidth: 600, minHeight: 400)
+                .background(WindowAccessor { window in
+                    AppSetup.shared.setup(state: state, updater: updater, window: window)
+                })
         }
         .windowStyle(.titleBar)
         .defaultSize(width: 780, height: 680)
@@ -79,6 +147,12 @@ struct ProgressBarApp: App {
                 }
             }
             CommandGroup(replacing: .newItem) {
+                Button(L("menu.quick_input")) {
+                    QuickInputWindowController.shared.configure(state: state)
+                    QuickInputWindowController.shared.toggle()
+                }
+                // 不绑菜单快捷键，避免与悬浮窗内 ⌘⇧K 切分区冲突；呼出走 Carbon 全局热键
+                Divider()
                 Button(L("menu.new_task")) { state.focusNewTask = true }
                     .keyboardShortcut("n", modifiers: .command)
                 Button(L("menu.search_task")) { state.focusSearch = true }
@@ -101,6 +175,11 @@ struct ProgressBarApp: App {
             CommandGroup(replacing: .help) {
                 Button(L("menu.shortcuts")) { state.showShortcuts = true }
                     .keyboardShortcut("/", modifiers: .command)
+                Divider()
+                Button(L("menu.prev_section")) { state.cycleSection(-1) }
+                    .keyboardShortcut("[", modifiers: .command)
+                Button(L("menu.next_section")) { state.cycleSection(1) }
+                    .keyboardShortcut("]", modifiers: .command)
                 Divider()
                 ForEach(1...9, id: \.self) { n in
                     Button(L("menu.switch_section_%d", n)) { state.switchToSection(at: n - 1) }
