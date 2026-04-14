@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.30] - 2026-04-14
+
+### Fixed
+- 点击「添加进展」时输入框自动聚焦失效
+
 ## [4.8] - 2026-04-09
 
 ### Changed
