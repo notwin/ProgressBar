@@ -1,9 +1,14 @@
-name: Release
+name: Release (fallback)
 
+# 默认发布走本地 Scripts/release.sh。
+# 此 workflow 仅作 fallback：本地环境不可用时，在 GitHub Actions 页面手动触发。
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要发布的 tag（需已存在，如 v4.30）'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -15,10 +20,13 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          ref: ${{ inputs.tag }}
 
       - name: Extract version from tag
         id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+        run: echo "version=${TAG#v}" >> $GITHUB_OUTPUT
+        env:
+          TAG: ${{ inputs.tag }}
 
       - name: Build
         run: |
@@ -69,15 +77,15 @@ jobs:
 
       - name: Generate release notes
         id: notes
+        env:
+          TAG: ${{ inputs.tag }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          # 从 CHANGELOG.md 提取当前版本的发布日志
+          VERSION="${TAG#v}"
           NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md)
           if [ -z "$NOTES" ]; then
-            # fallback: 用上一个 tag 到当前的 commit log
-            PREV_TAG=$(git tag --sort=-v:refname | grep -v "^$GITHUB_REF_NAME$" | head -1)
+            PREV_TAG=$(git tag --sort=-v:refname | grep -v "^$TAG$" | head -1)
             if [ -n "$PREV_TAG" ]; then
-              NOTES=$(git log --pretty=format:"- %s" "$PREV_TAG".."$GITHUB_REF_NAME" | grep -v "^- chore: bump")
+              NOTES=$(git log --pretty=format:"- %s" "$PREV_TAG".."$TAG" | grep -v "^- chore: bump")
             fi
           fi
           if [ -z "$NOTES" ]; then
@@ -88,6 +96,7 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          name: v${{ steps.version.outputs.version }}
+          tag_name: ${{ inputs.tag }}
+          name: ${{ inputs.tag }}
           body_path: /tmp/release_notes.md
           files: ProgressBar.dmg
