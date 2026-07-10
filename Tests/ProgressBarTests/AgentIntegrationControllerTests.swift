@@ -132,7 +132,7 @@ final class AgentIntegrationControllerTests: XCTestCase {
 
         controller.stop()
         queuedPoll()
-        await queuedFile()
+        queuedFile()
         await Task.yield()
 
         let scanCount = await connector.scanCount
@@ -243,28 +243,141 @@ final class AgentIntegrationControllerTests: XCTestCase {
             .appendingPathComponent(UUID().uuidString)
         let session = root.appendingPathComponent("session-1")
         try FileManager.default.createDirectory(at: session, withIntermediateDirectories: true)
-        let callbackCount = AsyncCounter()
+        let callbackCount = LockedCounter()
+        let debounceScheduler = ControlledDebounceScheduler()
         let monitor = DirectoryChangeMonitor(
             tasksRoot: root,
-            debounceInterval: 0.05
-        ) {
-            Task { await callbackCount.increment() }
-        }
+            debounceInterval: 0.05,
+            debounceScheduler: { delay, action in
+                debounceScheduler.schedule(delay, action)
+            },
+            callback: { callbackCount.increment() }
+        )
 
         await startMonitor(monitor)
-        try Data("one".utf8).write(to: session.appendingPathComponent("1.json"))
-        try Data("two".utf8).write(to: session.appendingPathComponent("2.json"))
-        await waitUntil { await callbackCount.value == 1 }
-        try await Task.sleep(for: .milliseconds(100))
-        let debouncedCount = await callbackCount.value
-        XCTAssertEqual(debouncedCount, 1)
+        let watchedPaths = await monitor.watchedPaths()
+        XCTAssertTrue(
+            watchedPaths.contains(session.resolvingSymlinksInPath().standardizedFileURL.path),
+            "watched=\(watchedPaths), session=\(session.resolvingSymlinksInPath().standardizedFileURL.path)"
+        )
+        monitor.simulateFileSystemEvent(at: session)
+        monitor.simulateFileSystemEvent(at: session)
+        await monitor.waitUntilIdle()
+        XCTAssertEqual(debounceScheduler.scheduledCount(), 2)
+
+        debounceScheduler.runAll()
+        await monitor.waitUntilIdle()
+
+        XCTAssertEqual(callbackCount.value(), 1)
         XCTAssertEqual(DirectoryChangeMonitor.defaultDebounceInterval, 1)
 
         monitor.stop()
-        try Data("three".utf8).write(to: session.appendingPathComponent("3.json"))
-        try await Task.sleep(for: .milliseconds(100))
-        let stoppedCount = await callbackCount.value
-        XCTAssertEqual(stoppedCount, 1)
+        monitor.simulateFileSystemEvent(at: session)
+        await monitor.waitUntilIdle()
+        debounceScheduler.runAll()
+        await monitor.waitUntilIdle()
+        XCTAssertEqual(callbackCount.value(), 1)
+    }
+
+    func testFallbackAncestorSuppressesNoiseUntilTopologyAdvances() async throws {
+        let anchor = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: anchor, withIntermediateDirectories: true)
+        let root = anchor.appendingPathComponent(".claude/tasks")
+        let callbackCount = LockedCounter()
+        let debounceScheduler = ControlledDebounceScheduler()
+        let monitor = DirectoryChangeMonitor(
+            tasksRoot: root,
+            debounceInterval: 0.05,
+            debounceScheduler: { delay, action in
+                debounceScheduler.schedule(delay, action)
+            },
+            callback: { callbackCount.increment() }
+        )
+        await startMonitor(monitor)
+
+        try FileManager.default.createDirectory(
+            at: anchor.appendingPathComponent("unrelated-1"),
+            withIntermediateDirectories: true
+        )
+        monitor.simulateFileSystemEvent(at: anchor)
+        await monitor.waitUntilIdle()
+        debounceScheduler.runAll()
+        await monitor.waitUntilIdle()
+        try FileManager.default.createDirectory(
+            at: anchor.appendingPathComponent("unrelated-2"),
+            withIntermediateDirectories: true
+        )
+        monitor.simulateFileSystemEvent(at: anchor)
+        await monitor.waitUntilIdle()
+        debounceScheduler.runAll()
+        await monitor.waitUntilIdle()
+        XCTAssertEqual(callbackCount.value(), 0)
+
+        try FileManager.default.createDirectory(
+            at: root.appendingPathComponent("session-1"),
+            withIntermediateDirectories: true
+        )
+        monitor.simulateFileSystemEvent(at: anchor)
+        await monitor.waitUntilIdle()
+        debounceScheduler.runAll()
+        await monitor.waitUntilIdle()
+        XCTAssertEqual(callbackCount.value(), 1)
+
+        try FileManager.default.createDirectory(
+            at: anchor.appendingPathComponent("unrelated-3"),
+            withIntermediateDirectories: true
+        )
+        monitor.simulateFileSystemEvent(at: anchor)
+        await monitor.waitUntilIdle()
+        debounceScheduler.runAll()
+        await monitor.waitUntilIdle()
+        XCTAssertEqual(callbackCount.value(), 1)
+        monitor.stop()
+    }
+
+    func testStopDrainsProductionOnChangeCallbackBoundary() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        let session = root.appendingPathComponent("session-1")
+        try FileManager.default.createDirectory(at: session, withIntermediateDirectories: true)
+        let debounceScheduler = ControlledDebounceScheduler()
+        let callbackEntered = DispatchSemaphore(value: 0)
+        let allowCallbackReturn = DispatchSemaphore(value: 0)
+        let stopReturned = DispatchSemaphore(value: 0)
+        let callbackCount = LockedCounter()
+        let monitor = DirectoryChangeMonitor(
+            tasksRoot: root,
+            debounceInterval: 0.05,
+            debounceScheduler: { delay, action in
+                debounceScheduler.schedule(delay, action)
+            }
+        )
+        monitor.start(onChange: {
+            callbackEntered.signal()
+            allowCallbackReturn.wait()
+            callbackCount.increment()
+        })
+        await monitor.waitUntilIdle()
+        monitor.simulateFileSystemEvent(at: session)
+        await monitor.waitUntilIdle()
+        debounceScheduler.runAll()
+        XCTAssertEqual(callbackEntered.wait(timeout: .now() + 1), .success)
+
+        Task.detached {
+            monitor.stop()
+            stopReturned.signal()
+        }
+        XCTAssertEqual(stopReturned.wait(timeout: .now() + 0.05), .timedOut)
+        allowCallbackReturn.signal()
+        XCTAssertEqual(stopReturned.wait(timeout: .now() + 1), .success)
+        XCTAssertEqual(callbackCount.value(), 1)
+
+        monitor.simulateFileSystemEvent(at: session)
+        await monitor.waitUntilIdle()
+        debounceScheduler.runAll()
+        await monitor.waitUntilIdle()
+        XCTAssertEqual(callbackCount.value(), 1)
     }
 
     func testDirectoryMonitorRefreshesSessionWatchersAfterRootChanges() async throws {
@@ -276,10 +389,11 @@ final class AgentIntegrationControllerTests: XCTestCase {
         let callbackCount = AsyncCounter()
         let monitor = DirectoryChangeMonitor(
             tasksRoot: root,
-            debounceInterval: 0.05
-        ) {
-            Task { await callbackCount.increment() }
-        }
+            debounceInterval: 0.05,
+            callback: {
+                Task { await callbackCount.increment() }
+            }
+        )
         await startMonitor(monitor)
 
         try FileManager.default.removeItem(at: firstSession)
@@ -304,10 +418,11 @@ final class AgentIntegrationControllerTests: XCTestCase {
         let callbackCount = AsyncCounter()
         let monitor = DirectoryChangeMonitor(
             tasksRoot: root,
-            debounceInterval: 0.05
-        ) {
-            Task { await callbackCount.increment() }
-        }
+            debounceInterval: 0.05,
+            callback: {
+                Task { await callbackCount.increment() }
+            }
+        )
         await startMonitor(monitor)
 
         try FileManager.default.removeItem(at: root)
@@ -675,10 +790,10 @@ private final class WeakBox<Value: AnyObject> {
 
 private final class TestDirectoryMonitor: AgentDirectoryMonitoring, @unchecked Sendable {
     private let lock = NSLock()
-    private var changeHandler: (@Sendable () async -> Void)?
+    private var changeHandler: (@Sendable () -> Void)?
     private(set) var stopCount = 0
 
-    func start(onChange: @escaping @Sendable () async -> Void) {
+    func start(onChange: @escaping @Sendable () -> Void) {
         lock.withLock {
             changeHandler = onChange
         }
@@ -691,12 +806,74 @@ private final class TestDirectoryMonitor: AgentDirectoryMonitoring, @unchecked S
         }
     }
 
-    func captureQueuedChange() -> (@Sendable () async -> Void)? {
+    func captureQueuedChange() -> (@Sendable () -> Void)? {
         lock.withLock { changeHandler }
     }
 
     func currentStopCount() -> Int {
         lock.withLock { stopCount }
+    }
+}
+
+private final class LockedCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    func increment() {
+        lock.withLock { count += 1 }
+    }
+
+    func value() -> Int {
+        lock.withLock { count }
+    }
+}
+
+private final class ControlledDebounceScheduler: @unchecked Sendable {
+    private let lock = NSLock()
+    private var actions: [ControlledScheduledAction] = []
+
+    func schedule(
+        _ delay: TimeInterval,
+        _ action: @escaping @Sendable () -> Void
+    ) -> any DirectoryMonitorScheduledAction {
+        let scheduledAction = ControlledScheduledAction(action: action)
+        lock.withLock { actions.append(scheduledAction) }
+        return scheduledAction
+    }
+
+    func scheduledCount() -> Int {
+        lock.withLock { actions.count }
+    }
+
+    func runAll() {
+        let scheduledActions = lock.withLock {
+            let scheduledActions = actions
+            actions.removeAll()
+            return scheduledActions
+        }
+        scheduledActions.forEach { $0.run() }
+    }
+}
+
+private final class ControlledScheduledAction: DirectoryMonitorScheduledAction, @unchecked Sendable {
+    private let lock = NSLock()
+    private var action: (@Sendable () -> Void)?
+
+    init(action: @escaping @Sendable () -> Void) {
+        self.action = action
+    }
+
+    func cancel() {
+        lock.withLock { action = nil }
+    }
+
+    func run() {
+        let pendingAction = lock.withLock {
+            let pendingAction = self.action
+            self.action = nil
+            return pendingAction
+        }
+        pendingAction?()
     }
 }
 

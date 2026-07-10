@@ -2,33 +2,74 @@ import Darwin
 import Foundation
 
 protocol AgentDirectoryMonitoring: AnyObject, Sendable {
-    func start(onChange: @escaping @Sendable () async -> Void)
+    func start(onChange: @escaping @Sendable () -> Void)
     func stop()
+}
+
+protocol DirectoryMonitorScheduledAction: AnyObject, Sendable {
+    func cancel()
+}
+
+private final class DispatchDirectoryMonitorScheduledAction: DirectoryMonitorScheduledAction, @unchecked Sendable {
+    private let workItem: DispatchWorkItem
+
+    init(workItem: DispatchWorkItem) {
+        self.workItem = workItem
+    }
+
+    func cancel() {
+        workItem.cancel()
+    }
 }
 
 final class DirectoryChangeMonitor: AgentDirectoryMonitoring, @unchecked Sendable {
     static let defaultDebounceInterval: TimeInterval = 1
 
+    private enum WatchTopology: Equatable {
+        case fallback(anchorPath: String)
+        case precise(paths: Set<String>)
+    }
+
+    private struct WatchPlan {
+        let urls: [URL]
+        let topology: WatchTopology
+    }
+
     private let tasksRoot: URL
     private let debounceInterval: TimeInterval
     private let initialCallback: (@Sendable () -> Void)?
-    private var changeHandler: (@Sendable () async -> Void)?
+    private var changeHandler: (@Sendable () -> Void)?
     private let queue: DispatchQueue
+    private let debounceScheduler: @Sendable (
+        TimeInterval,
+        @escaping @Sendable () -> Void
+    ) -> any DirectoryMonitorScheduledAction
     private let queueKey = DispatchSpecificKey<UInt8>()
     private var sources: [String: DispatchSourceFileSystemObject] = [:]
-    private var pendingCallback: DispatchWorkItem?
+    private var pendingCallback: (any DirectoryMonitorScheduledAction)?
+    private var watchTopology: WatchTopology?
     private var isStarted = false
 
     init(
         tasksRoot: URL,
         debounceInterval: TimeInterval = DirectoryChangeMonitor.defaultDebounceInterval,
         queue: DispatchQueue? = nil,
+        debounceScheduler: (@Sendable (
+            TimeInterval,
+            @escaping @Sendable () -> Void
+        ) -> any DirectoryMonitorScheduledAction)? = nil,
         callback: (@Sendable () -> Void)? = nil
     ) {
-        self.tasksRoot = tasksRoot.standardizedFileURL
+        let monitorQueue = queue ?? DispatchQueue(label: "progressbar.agent-directory-monitor")
+        self.tasksRoot = tasksRoot.resolvingSymlinksInPath().standardizedFileURL
         self.debounceInterval = debounceInterval
         self.initialCallback = callback
-        self.queue = queue ?? DispatchQueue(label: "progressbar.agent-directory-monitor")
+        self.queue = monitorQueue
+        self.debounceScheduler = debounceScheduler ?? { interval, action in
+            let workItem = DispatchWorkItem(block: action)
+            monitorQueue.asyncAfter(deadline: .now() + interval, execute: workItem)
+            return DispatchDirectoryMonitorScheduledAction(workItem: workItem)
+        }
         self.queue.setSpecific(key: queueKey, value: 1)
     }
 
@@ -44,12 +85,12 @@ final class DirectoryChangeMonitor: AgentDirectoryMonitoring, @unchecked Sendabl
         enqueueStart(onChange: nil, onReady: onReady)
     }
 
-    func start(onChange: @escaping @Sendable () async -> Void) {
+    func start(onChange: @escaping @Sendable () -> Void) {
         enqueueStart(onChange: onChange, onReady: {})
     }
 
     private func enqueueStart(
-        onChange: (@Sendable () async -> Void)?,
+        onChange: (@Sendable () -> Void)?,
         onReady: @escaping @Sendable () -> Void
     ) {
         queue.async { [weak self] in
@@ -74,6 +115,7 @@ final class DirectoryChangeMonitor: AgentDirectoryMonitoring, @unchecked Sendabl
             pendingCallback?.cancel()
             pendingCallback = nil
             changeHandler = nil
+            watchTopology = nil
             let activeSources = Array(sources.values)
             sources.removeAll()
             activeSources.forEach { $0.cancel() }
@@ -88,37 +130,49 @@ final class DirectoryChangeMonitor: AgentDirectoryMonitoring, @unchecked Sendabl
         }
     }
 
-    private func refreshWatchedDirectories() {
-        guard isStarted else { return }
-        let desiredURLs = watchedDirectoryURLs()
-        let desiredPaths = Set(desiredURLs.map(\.path))
+    @discardableResult
+    private func refreshWatchedDirectories() -> WatchTopology {
+        let plan = makeWatchPlan()
+        let desiredURLs = plan.urls
+        let desiredPaths = Set(desiredURLs.map(canonicalPath))
 
         for path in Array(sources.keys) where !desiredPaths.contains(path) {
             sources.removeValue(forKey: path)?.cancel()
         }
-        for url in desiredURLs where sources[url.path] == nil {
+        for url in desiredURLs where sources[canonicalPath(url)] == nil {
             addSource(for: url)
         }
+        watchTopology = plan.topology
+        return plan.topology
     }
 
-    private func watchedDirectoryURLs() -> [URL] {
+    private func makeWatchPlan() -> WatchPlan {
         let tasksParent = tasksRoot.deletingLastPathComponent()
         guard isDirectory(tasksParent) else {
-            return [nearestExistingAncestor(startingAt: tasksParent)]
+            let anchor = nearestExistingAncestor(startingAt: tasksParent)
+            return WatchPlan(
+                urls: [anchor],
+                topology: .fallback(anchorPath: canonicalPath(anchor))
+            )
         }
 
         var urls = [tasksParent]
-        guard isDirectory(tasksRoot) else { return urls }
-        urls.append(tasksRoot)
-        let sessionDirectories = (try? FileManager.default.contentsOfDirectory(
-            at: tasksRoot,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        )) ?? []
-        urls.append(contentsOf: sessionDirectories.filter { url in
-            (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
-        })
-        return urls.sorted { $0.path < $1.path }
+        if isDirectory(tasksRoot) {
+            urls.append(tasksRoot)
+            let sessionDirectories = (try? FileManager.default.contentsOfDirectory(
+                at: tasksRoot,
+                includingPropertiesForKeys: [.isDirectoryKey],
+                options: [.skipsHiddenFiles]
+            )) ?? []
+            urls.append(contentsOf: sessionDirectories.filter { url in
+                (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+            })
+        }
+        let sortedURLs = urls.sorted { $0.path < $1.path }
+        return WatchPlan(
+            urls: sortedURLs,
+            topology: .precise(paths: Set(sortedURLs.map(canonicalPath)))
+        )
     }
 
     private func nearestExistingAncestor(startingAt url: URL) -> URL {
@@ -138,6 +192,7 @@ final class DirectoryChangeMonitor: AgentDirectoryMonitoring, @unchecked Sendabl
     }
 
     private func addSource(for url: URL) {
+        let path = canonicalPath(url)
         let descriptor = open(url.path, O_EVTONLY)
         guard descriptor >= 0 else { return }
 
@@ -150,31 +205,67 @@ final class DirectoryChangeMonitor: AgentDirectoryMonitoring, @unchecked Sendabl
             guard let self, let source else { return }
             let events = source.data
             if !events.intersection([.rename, .delete]).isEmpty {
-                self.sources.removeValue(forKey: url.path)?.cancel()
+                self.sources.removeValue(forKey: path)?.cancel()
             }
             self.scheduleCallback()
         }
         source.setCancelHandler {
             close(descriptor)
         }
-        sources[url.path] = source
+        sources[path] = source
         source.resume()
     }
 
     private func scheduleCallback() {
         guard isStarted else { return }
         pendingCallback?.cancel()
-        let workItem = DispatchWorkItem { [weak self] in
-            guard let self, self.isStarted else { return }
-            self.pendingCallback = nil
-            self.refreshWatchedDirectories()
-            if let changeHandler = self.changeHandler {
-                Task { await changeHandler() }
-            } else {
-                self.initialCallback?()
+        pendingCallback = debounceScheduler(debounceInterval) { [weak self] in
+            self?.queue.async { [weak self] in
+                self?.fireDebouncedCallback()
             }
         }
-        pendingCallback = workItem
-        queue.asyncAfter(deadline: .now() + debounceInterval, execute: workItem)
+    }
+
+    private func fireDebouncedCallback() {
+        guard isStarted else { return }
+        pendingCallback = nil
+        let priorTopology = watchTopology
+        let refreshedTopology = refreshWatchedDirectories()
+        if case .fallback = priorTopology, priorTopology == refreshedTopology {
+            return
+        }
+        if let changeHandler {
+            changeHandler()
+        } else {
+            initialCallback?()
+        }
+    }
+
+    func simulateFileSystemEvent(at url: URL) {
+        queue.async { [weak self] in
+            guard let self, self.sources[self.canonicalPath(url)] != nil else { return }
+            self.scheduleCallback()
+        }
+    }
+
+    func waitUntilIdle() async {
+        await withCheckedContinuation { continuation in
+            queue.async {
+                continuation.resume()
+            }
+        }
+    }
+
+    func watchedPaths() async -> Set<String> {
+        await withCheckedContinuation { continuation in
+            queue.async { [weak self] in
+                let paths = self.map { Set($0.sources.keys) } ?? []
+                continuation.resume(returning: paths)
+            }
+        }
+    }
+
+    private func canonicalPath(_ url: URL) -> String {
+        url.resolvingSymlinksInPath().standardizedFileURL.path
     }
 }

@@ -286,7 +286,10 @@ final class AgentIntegrationController: ObservableObject {
         applicationIsActive = applicationIsActiveProvider()
         registerApplicationNotifications(token: token)
         directoryMonitor?.start { [weak self, token] in
-            await self?.refreshFromExternalTrigger(token: token)
+            Task { @MainActor in
+                guard let self, self.isStarted, token === self.lifecycleToken else { return }
+                _ = self.requestRefresh(token: token)
+            }
         }
         updatePolling(token: token)
         _ = requestRefresh(token: token)
@@ -385,12 +388,6 @@ final class AgentIntegrationController: ObservableObject {
 
     private func isCurrent(token: AgentLifecycleToken, runID: UInt64) -> Bool {
         token === lifecycleToken && activeRefreshRunID == runID
-    }
-
-    private func refreshFromExternalTrigger(token: AgentLifecycleToken) async {
-        guard isStarted, token === lifecycleToken else { return }
-        let task = requestRefresh(token: token)
-        await task.value
     }
 
     private func registerApplicationNotifications(token: AgentLifecycleToken) {
