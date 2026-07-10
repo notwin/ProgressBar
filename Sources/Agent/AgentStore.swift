@@ -27,7 +27,7 @@ enum AgentStoreError: Error, CustomStringConvertible {
 actor AgentStore {
     private static let connectorVersion = "1"
 
-    private let database: OpaquePointer
+    nonisolated(unsafe) private let database: OpaquePointer
 
     init(
         databaseURL: URL,
@@ -371,7 +371,7 @@ actor AgentStore {
         return AgentDashboard(
             projects: projects,
             sourceStates: try readSourceStates(),
-            adoptedKeys: try readAdoptedKeys()
+            adoptions: try readAdoptions()
         )
     }
 
@@ -577,25 +577,36 @@ actor AgentStore {
         }
     }
 
-    private func readAdoptedKeys() throws -> Set<AgentItemKey> {
+    private func readAdoptions() throws -> [AgentItemKey: AgentAdoptionRecord] {
         let statement = try SQLiteStatement(
             database: database,
-            sql: "SELECT source, source_session_id, source_item_id FROM agent_adoptions"
+            sql: """
+            SELECT source, source_session_id, source_item_id, progressbar_task_id,
+                   target_section_id, state, adopted_at
+            FROM agent_adoptions
+            """
         )
-        var keys: Set<AgentItemKey> = []
+        var adoptions: [AgentItemKey: AgentAdoptionRecord] = [:]
         while try statement.step() {
-            guard let source = AgentSource(rawValue: statement.text(at: 0)) else {
-                throw AgentStoreError.invalidData("unknown adoption source")
+            guard let source = AgentSource(rawValue: statement.text(at: 0)),
+                  let state = AgentAdoptionState(rawValue: statement.text(at: 5))
+            else {
+                throw AgentStoreError.invalidData("unknown adoption source or state")
             }
-            keys.insert(
-                AgentItemKey(
-                    source: source,
-                    sessionID: statement.text(at: 1),
-                    itemID: statement.text(at: 2)
-                )
+            let key = AgentItemKey(
+                source: source,
+                sessionID: statement.text(at: 1),
+                itemID: statement.text(at: 2)
+            )
+            adoptions[key] = AgentAdoptionRecord(
+                key: key,
+                progressBarTaskID: statement.text(at: 3),
+                targetSectionID: statement.text(at: 4),
+                state: state,
+                adoptedAt: Date(timeIntervalSince1970: statement.double(at: 6))
             )
         }
-        return keys
+        return adoptions
     }
 
     private static func openDatabase(

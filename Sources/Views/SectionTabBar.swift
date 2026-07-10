@@ -6,6 +6,8 @@ import SwiftUI
 
 struct SectionTabBar: View {
     @EnvironmentObject var state: AppState
+    @ObservedObject var agents: AgentIntegrationController
+    @Binding var showingAgent: Bool
     @State private var showAdd = false
     @State private var newName = ""
     @State private var editId: String?
@@ -19,7 +21,7 @@ struct SectionTabBar: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
                 ForEach(state.sections) { sec in
-                    let active = sec.id == state.activeSectionId
+                    let active = !showingAgent && sec.id == state.activeSectionId
                     if editId == sec.id {
                         TextField("", text: $editName, onCommit: {
                             if !editName.isEmpty { state.renameSection(sec.id, name: editName) }
@@ -35,6 +37,7 @@ struct SectionTabBar: View {
                     } else {
                         Button(action: {
                             withAnimation(.appSpring) {
+                                showingAgent = false
                                 state.activeSectionId = sec.id
                             }
                             state.save()
@@ -63,6 +66,25 @@ struct SectionTabBar: View {
                         }
                     }
                 }
+
+                Button {
+                    withAnimation(.appSpring) { showingAgent = true }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles")
+                        Text(L("agent.tab"))
+                        if agents.activeItemCount > 0 {
+                            Text("\(agents.activeItemCount)")
+                                .font(.system(size: 12, weight: .bold))
+                        }
+                    }
+                    .font(.system(size: 14, weight: showingAgent ? .semibold : .regular))
+                    .padding(.horizontal, 12).padding(.vertical, 5)
+                    .background(showingAgent ? theme.accent : Color.clear)
+                    .foregroundColor(showingAgent ? .white : theme.t2)
+                    .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
 
                 // 新建分区按钮
                 Button(action: { showAdd.toggle() }) {

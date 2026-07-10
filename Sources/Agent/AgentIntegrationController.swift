@@ -17,7 +17,7 @@ protocol AgentPollScheduling: AnyObject {
 
 @MainActor
 private final class FoundationAgentPollCancellation: AgentPollCancellation {
-    private var timer: Timer?
+    nonisolated(unsafe) private var timer: Timer?
 
     init(timer: Timer) {
         self.timer = timer
@@ -159,6 +159,10 @@ private actor AgentRefreshWorker {
         return try await store.dashboard(includeHistory: includeHistory)
     }
 
+    func reloadConnectors() {
+        connectors = nil
+    }
+
     private func loadStore() async throws -> AgentStore {
         if let store { return store }
         if let storeInitializationError {
@@ -188,7 +192,7 @@ private actor AgentRefreshWorker {
             sourceStates: sources.map {
                 AgentSourceState(source: $0, lastScanAt: now(), lastSuccessAt: nil, error: message)
             },
-            adoptedKeys: []
+            adoptions: [:]
         )
     }
 }
@@ -214,10 +218,18 @@ final class AgentIntegrationController: ObservableObject {
     @Published private(set) var dashboard = AgentDashboard(
         projects: [],
         sourceStates: [],
-        adoptedKeys: []
+        adoptions: [:]
     )
     @Published private(set) var isRefreshing = false
     @Published var showingHistory = false
+
+    var activeItemCount: Int {
+        dashboard.projects.reduce(into: 0) { projectCount, project in
+            projectCount += project.sessions.reduce(into: 0) { sessionCount, session in
+                sessionCount += session.items.filter { $0.status != .done }.count
+            }
+        }
+    }
 
     private static let pollingInterval: TimeInterval = 10
 
@@ -227,8 +239,8 @@ final class AgentIntegrationController: ObservableObject {
     private let directoryMonitor: (any AgentDirectoryMonitoring)?
     private let applicationIsActiveProvider: @MainActor () -> Bool
     private let adoptionDashboardLoader: (@MainActor (Bool) async throws -> AgentDashboard)?
-    private var notificationObservers: [NSObjectProtocol] = []
-    private var pollCancellation: (any AgentPollCancellation)?
+    nonisolated(unsafe) private var notificationObservers: [NSObjectProtocol] = []
+    nonisolated(unsafe) private var pollCancellation: (any AgentPollCancellation)?
     private var refreshTask: Task<Void, Never>?
     private var refreshExecutionTail: Task<Void, Never>?
     private var activeRefreshRunID: UInt64?
@@ -238,6 +250,7 @@ final class AgentIntegrationController: ObservableObject {
     private var isVisible = false
     private var applicationIsActive: Bool
     private var refreshPending = false
+    private var historyProjectionRevision: UInt64 = 0
     private var adoptionOperations: [AgentItemKey: (id: UUID, task: Task<String, Error>)] = [:]
 
     init(
@@ -264,7 +277,7 @@ final class AgentIntegrationController: ObservableObject {
         self.applicationIsActive = provider()
     }
 
-    private init(
+    init(
         databaseURL: URL,
         sources: [AgentSource],
         connectorLoader: @escaping @Sendable () -> [any AgentConnector],
@@ -371,6 +384,41 @@ final class AgentIntegrationController: ObservableObject {
     func refresh() async {
         let task = requestRefresh(token: lifecycleToken)
         await task.value
+    }
+
+    func setShowingHistory(_ showingHistory: Bool) async {
+        historyProjectionRevision &+= 1
+        let revision = historyProjectionRevision
+        self.showingHistory = showingHistory
+        let inFlightRefresh = refreshTask
+        await inFlightRefresh?.value
+        guard revision == historyProjectionRevision else { return }
+        do {
+            let projectedDashboard = try await worker.dashboard(includeHistory: showingHistory)
+            guard revision == historyProjectionRevision else { return }
+            dashboard = projectedDashboard
+        } catch {
+            // History is a cache projection. Preserve the last dashboard if SQLite is unavailable.
+        }
+    }
+
+    func reloadConnectorConfiguration() async {
+        await worker.reloadConnectors()
+        await refresh()
+    }
+
+    func adoptionPresentation(
+        for key: AgentItemKey,
+        taskSink: UserTaskAdopting
+    ) -> AgentAdoptionPresentation {
+        guard let adoption = dashboard.adoptions[key] else { return .available }
+        guard adoption.state == .completed else {
+            return .retry(taskID: adoption.progressBarTaskID)
+        }
+        if taskSink.containsTask(id: adoption.progressBarTaskID) {
+            return .adopted(taskID: adoption.progressBarTaskID)
+        }
+        return .adoptedTaskMissing(taskID: adoption.progressBarTaskID)
     }
 
     func adopt(

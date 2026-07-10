@@ -5,6 +5,75 @@ import XCTest
 
 final class AgentIntegrationControllerTests: XCTestCase {
     @MainActor
+    func testActiveItemCountExcludesCompletedItems() async throws {
+        let controller = try await makeController(connectors: [
+            SnapshotConnector(items: [
+                AgentFixtures.item(id: "pending", status: .pending),
+                AgentFixtures.item(id: "done", status: .done)
+            ])
+        ])
+        await controller.refresh()
+        XCTAssertEqual(controller.activeItemCount, 1)
+    }
+
+    @MainActor
+    func testHistoryToggleReloadsCompletedSessions() async throws {
+        let controller = try await makeController(connectors: [
+            SnapshotConnector(items: [AgentFixtures.item(id: "done", status: .done)])
+        ])
+        await controller.refresh()
+        XCTAssertTrue(controller.dashboard.projects.isEmpty)
+        await controller.setShowingHistory(true)
+        XCTAssertEqual(controller.dashboard.projects.count, 1)
+    }
+
+    @MainActor
+    func testHistoryToggleReloadsStoreWithoutRescanningConnector() async throws {
+        let connector = CountingCompletedConnector()
+        let controller = try await makeController(connectors: [connector])
+        await controller.refresh()
+        let initialScanCount = await connector.scanCount
+        XCTAssertEqual(initialScanCount, 1)
+
+        await controller.setShowingHistory(true)
+
+        XCTAssertEqual(controller.dashboard.projects.count, 1)
+        let finalScanCount = await connector.scanCount
+        XCTAssertEqual(finalScanCount, 1)
+    }
+
+    @MainActor
+    func testDashboardSortsNewestProjectFirst() async throws {
+        let controller = try await makeController(connectors: [OrderedSnapshotConnector()])
+        await controller.refresh()
+        XCTAssertEqual(controller.dashboard.projects.map(\.displayName), ["newer", "older"])
+    }
+
+    @MainActor
+    func testReloadConnectorConfigurationRebuildsConnectorsBeforeRefresh() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        let factory = ReloadableConnectorFactory()
+        let controller = AgentIntegrationController(
+            databaseURL: directory.appendingPathComponent("agent.sqlite"),
+            sources: [.claude],
+            connectorLoader: { [factory] in [factory.makeConnector()] },
+            notificationCenter: NotificationCenter(),
+            pollScheduler: TestPollScheduler(),
+            applicationIsActiveProvider: { true },
+            now: { Date(timeIntervalSince1970: 1_700_000_000) }
+        )
+
+        await controller.refresh()
+        XCTAssertEqual(controller.dashboard.projects.map(\.displayName), ["generation-1"])
+
+        await controller.reloadConnectorConfiguration()
+
+        XCTAssertEqual(factory.makeCount, 2)
+        XCTAssertEqual(controller.dashboard.projects.map(\.displayName), ["generation-2"])
+    }
+
+    @MainActor
     func testOneSourceFailureDoesNotHideOtherSource() async throws {
         let controller = try await makeController(connectors: [
             SnapshotConnector(source: .claude),
@@ -605,9 +674,55 @@ final class AgentIntegrationControllerTests: XCTestCase {
 
 private struct SnapshotConnector: AgentConnector {
     let source: AgentSource
+    let items: [AgentItemSnapshot]?
+
+    init(source: AgentSource) {
+        self.source = source
+        items = nil
+    }
+
+    init(items: [AgentItemSnapshot], source: AgentSource = .claude) {
+        self.source = source
+        self.items = items
+    }
 
     func scan(cursor: String?) async throws -> AgentSnapshot {
-        makeSnapshot(source: source)
+        if let items {
+            return AgentFixtures.snapshot(source: source, items: items)
+        }
+        return makeSnapshot(source: source)
+    }
+}
+
+private struct OrderedSnapshotConnector: AgentConnector {
+    let source: AgentSource = .claude
+
+    func scan(cursor: String?) async throws -> AgentSnapshot {
+        AgentFixtures.orderedProjectsSnapshot()
+    }
+}
+
+private final class ReloadableConnectorFactory: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    var makeCount: Int { lock.withLock { count } }
+
+    func makeConnector() -> NamedSnapshotConnector {
+        let generation = lock.withLock {
+            count += 1
+            return count
+        }
+        return NamedSnapshotConnector(displayName: "generation-\(generation)")
+    }
+}
+
+private struct NamedSnapshotConnector: AgentConnector {
+    let source: AgentSource = .claude
+    let displayName: String
+
+    func scan(cursor: String?) async throws -> AgentSnapshot {
+        makeSnapshot(source: source, displayName: displayName)
     }
 }
 
@@ -626,6 +741,19 @@ private actor CountingConnector: AgentConnector {
     func scan(cursor: String?) async throws -> AgentSnapshot {
         scanCount += 1
         return makeSnapshot(source: source)
+    }
+}
+
+private actor CountingCompletedConnector: AgentConnector {
+    nonisolated let source: AgentSource = .claude
+    private(set) var scanCount = 0
+
+    func scan(cursor: String?) async throws -> AgentSnapshot {
+        scanCount += 1
+        return AgentFixtures.snapshot(
+            source: source,
+            items: [AgentFixtures.item(id: "done", status: .done)]
+        )
     }
 }
 
@@ -884,6 +1012,82 @@ private actor AsyncCounter {
 
 private enum TestFailure: Error {
     case failed
+}
+
+private enum AgentFixtures {
+    static let now = Date(timeIntervalSince1970: 1_700_000_000)
+
+    static func item(id: String, status: AgentItemStatus) -> AgentItemSnapshot {
+        AgentItemSnapshot(
+            key: AgentItemKey(source: .claude, sessionID: "session", itemID: id),
+            kind: .todo,
+            title: id,
+            description: "",
+            status: status,
+            sortOrder: 0,
+            sourceUpdatedAt: now,
+            blocks: [],
+            blockedBy: []
+        )
+    }
+
+    static func snapshot(
+        source: AgentSource,
+        items: [AgentItemSnapshot]
+    ) -> AgentSnapshot {
+        let session = AgentSessionSnapshot(
+            source: source,
+            sessionID: "session",
+            title: "Session",
+            updatedAt: now,
+            items: items
+        )
+        let project = AgentProjectSnapshot(
+            source: source,
+            projectKey: source.rawValue,
+            displayName: source.rawValue,
+            cwd: "/tmp/\(source.rawValue)",
+            sessions: [session]
+        )
+        return AgentSnapshot(source: source, scannedAt: now, projects: [project], cursorData: nil)
+    }
+
+    static func orderedProjectsSnapshot() -> AgentSnapshot {
+        let projects = [
+            project(name: "older", updatedAt: now.addingTimeInterval(-100)),
+            project(name: "newer", updatedAt: now)
+        ]
+        return AgentSnapshot(source: .claude, scannedAt: now, projects: projects, cursorData: nil)
+    }
+
+    private static func project(name: String, updatedAt: Date) -> AgentProjectSnapshot {
+        let item = AgentItemSnapshot(
+            key: AgentItemKey(source: .claude, sessionID: name, itemID: name),
+            kind: .todo,
+            title: name,
+            description: "",
+            status: .inProgress,
+            sortOrder: 0,
+            sourceUpdatedAt: updatedAt,
+            blocks: [],
+            blockedBy: []
+        )
+        return AgentProjectSnapshot(
+            source: .claude,
+            projectKey: name,
+            displayName: name,
+            cwd: "/tmp/\(name)",
+            sessions: [
+                AgentSessionSnapshot(
+                    source: .claude,
+                    sessionID: name,
+                    title: name,
+                    updatedAt: updatedAt,
+                    items: [item]
+                )
+            ]
+        )
+    }
 }
 
 private func makeSnapshot(

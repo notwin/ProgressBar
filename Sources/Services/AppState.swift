@@ -32,6 +32,7 @@ class AppState: ObservableObject, UserTaskAdopting {
     @Published var showShortcuts: Bool = false
     @Published var triggerExport: Bool = false
     @Published var triggerCalendarSync: Bool = false
+    @Published private(set) var ordinarySectionNavigationRevision: UInt64 = 0
     @Published var saveError: String?
     @Published var syncedTaskIds: Set<String> = []
 
@@ -211,6 +212,7 @@ class AppState: ObservableObject, UserTaskAdopting {
     /// 按索引切换分区（⌘1~⌘9）
     func switchToSection(at index: Int) {
         guard index >= 0, index < sections.count else { return }
+        ordinarySectionNavigationRevision &+= 1
         withAnimation(.appSpring) { activeSectionId = sections[index].id }
         save()
     }
@@ -256,6 +258,18 @@ class AppState: ObservableObject, UserTaskAdopting {
         sections.contains { section in
             section.tasks.contains { $0.id == id } || section.archived.contains { $0.id == id }
         }
+    }
+
+    @discardableResult
+    func locateTask(id: String) -> Bool {
+        guard let section = sections.first(where: { section in
+            section.tasks.contains { $0.id == id } || section.archived.contains { $0.id == id }
+        }) else {
+            return false
+        }
+        withAnimation(.appSpring) { activeSectionId = section.id }
+        save()
+        return true
     }
 
     @discardableResult

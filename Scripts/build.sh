@@ -22,7 +22,9 @@ swiftc \
   "$SRC/Views/CalendarPicker.swift" "$SRC/Views/SectionTabBar.swift" \
   "$SRC/Views/TaskRowView.swift" "$SRC/Views/ArchiveSectionView.swift" \
   "$SRC/Views/ThemePickerView.swift" "$SRC/Views/SettingsView.swift" \
-  "$SRC/Views/ExportCardView.swift" "$SRC/Views/ContentView.swift" \
+  "$SRC/Views/ExportCardView.swift" \
+  "$SRC/Views/AgentSectionView.swift" "$SRC/Views/AgentAdoptionSheet.swift" \
+  "$SRC/Views/AgentSettingsView.swift" "$SRC/Views/ContentView.swift" \
   "$SRC/Views/QuickInputView.swift" \
   "$SRC/App/ProgressBarApp.swift" "$SRC/App/QuickInputWindowController.swift" \
   -parse-as-library \

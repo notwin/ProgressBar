@@ -243,6 +243,24 @@ final class AgentStoreTests: XCTestCase {
         XCTAssertEqual(try rowCount(in: "agent_adoptions", databaseURL: databaseURL), 1)
     }
 
+    func testDashboardIncludesFullAdoptionRecordMapping() async throws {
+        let store = try await makeStore()
+        let key = AgentFixtures.key()
+        let adoption = try await store.reserveAdoption(
+            key: key,
+            taskID: "task-1",
+            sectionID: "section-1",
+            at: AgentFixtures.baseDate
+        )
+        try await store.completeAdoption(key: key)
+
+        let dashboard = try await store.dashboard(includeHistory: false)
+
+        XCTAssertEqual(dashboard.adoptions[key]?.progressBarTaskID, adoption.progressBarTaskID)
+        XCTAssertEqual(dashboard.adoptions[key]?.targetSectionID, adoption.targetSectionID)
+        XCTAssertEqual(dashboard.adoptions[key]?.state, .completed)
+    }
+
     private func rowCount(in table: String, databaseURL: URL) throws -> Int {
         var database: OpaquePointer?
         guard sqlite3_open_v2(databaseURL.path, &database, SQLITE_OPEN_READONLY, nil) == SQLITE_OK,

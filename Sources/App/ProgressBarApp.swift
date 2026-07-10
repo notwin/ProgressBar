@@ -41,7 +41,12 @@ final class AppSetup {
     weak var mainWindow: NSWindow?
     private var notificationObserver: NSObjectProtocol?
 
-    func setup(state: AppState, updater: UpdateChecker, window: NSWindow) {
+    func setup(
+        state: AppState,
+        updater: UpdateChecker,
+        agents: AgentIntegrationController,
+        window: NSWindow
+    ) {
         mainWindow = window
         window.delegate = MainWindowCloseHandler.shared
 
@@ -60,10 +65,14 @@ final class AppSetup {
         // 菜单栏 → 打开设置
         notificationObserver = NotificationCenter.default.addObserver(
             forName: .openSettingsFromStatusBar, object: nil, queue: .main
-        ) { [weak state, weak updater] _ in
-            guard let state = state, let updater = updater else { return }
+        ) { [weak state, weak updater, weak agents] _ in
+            guard let state, let updater, let agents else { return }
             Task { @MainActor in
-                SettingsWindowController.shared.open(state: state, updater: updater)
+                SettingsWindowController.shared.open(
+                    state: state,
+                    updater: updater,
+                    agents: agents
+                )
             }
         }
     }
@@ -76,12 +85,21 @@ final class SettingsWindowController {
     private var window: NSWindow?
     private var keyMonitor: Any?
 
-    func open(state: AppState, updater: UpdateChecker, tab: SettingsTab = .appearance) {
+    func open(
+        state: AppState,
+        updater: UpdateChecker,
+        agents: AgentIntegrationController,
+        tab: SettingsTab = .appearance
+    ) {
         if let w = window, w.isVisible {
             w.close()
         }
         let size = NSSize(width: 600, height: 350)
-        let view = SettingsView(updater: updater, selectedTab: tab).environmentObject(state)
+        let view = SettingsView(
+            updater: updater,
+            agents: agents,
+            selectedTab: tab
+        ).environmentObject(state)
         let hostingView = NSHostingView(rootView: view)
         hostingView.autoresizingMask = [.width, .height]
         let w = NSWindow(
@@ -128,13 +146,17 @@ struct ProgressBarApp: App {
 
     var body: some Scene {
         WindowGroup(L("about.name")) {
-            ContentView(state: state, updater: updater)
-                .environmentObject(agents)
+            ContentView(state: state, updater: updater, agents: agents)
                 .frame(minWidth: 600, minHeight: 400)
                 .task { agents.start() }
                 .onDisappear { agents.stop() }
                 .background(WindowAccessor { window in
-                    AppSetup.shared.setup(state: state, updater: updater, window: window)
+                    AppSetup.shared.setup(
+                        state: state,
+                        updater: updater,
+                        agents: agents,
+                        window: window
+                    )
                 })
         }
         .windowStyle(.titleBar)
@@ -142,12 +164,21 @@ struct ProgressBarApp: App {
         .commands {
             CommandGroup(after: .appInfo) {
                 Button(L("menu.settings")) {
-                    SettingsWindowController.shared.open(state: state, updater: updater)
+                    SettingsWindowController.shared.open(
+                        state: state,
+                        updater: updater,
+                        agents: agents
+                    )
                 }
                 .keyboardShortcut(",", modifiers: .command)
                 Button(L("menu.check_update")) {
                     updater.checkForUpdates()
-                    SettingsWindowController.shared.open(state: state, updater: updater, tab: .update)
+                    SettingsWindowController.shared.open(
+                        state: state,
+                        updater: updater,
+                        agents: agents,
+                        tab: .update
+                    )
                 }
             }
             CommandGroup(replacing: .newItem) {

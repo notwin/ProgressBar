@@ -6,7 +6,7 @@ import SwiftUI
 import Carbon.HIToolbox
 
 enum SettingsTab: Hashable {
-    case appearance, language, shortcuts, update, about
+    case appearance, language, shortcuts, agents, update, about
 }
 
 struct LanguageOption: Identifiable {
@@ -130,6 +130,7 @@ struct LanguagePickerView: View {
 struct SettingsView: View {
     @EnvironmentObject var state: AppState
     @ObservedObject var updater: UpdateChecker
+    @ObservedObject var agents: AgentIntegrationController
     @State var selectedTab: SettingsTab = .appearance
 
     var theme: ThemeColors { state.theme }
@@ -139,6 +140,9 @@ struct SettingsView: View {
             appearanceTab.tabItem { Label(L("settings.appearance"), systemImage: "paintbrush") }.tag(SettingsTab.appearance)
             languageTab.tabItem { Label(L("settings.language"), systemImage: "globe") }.tag(SettingsTab.language)
             shortcutsTab.tabItem { Label(L("settings.shortcuts"), systemImage: "keyboard") }.tag(SettingsTab.shortcuts)
+            AgentSettingsView(state: state, agents: agents)
+                .tabItem { Label(L("agent.settings"), systemImage: "cpu") }
+                .tag(SettingsTab.agents)
             updateTab.tabItem { Label(L("settings.update"), systemImage: "arrow.triangle.2.circlepath") }.tag(SettingsTab.update)
             aboutTab.tabItem { Label(L("settings.about"), systemImage: "info.circle") }.tag(SettingsTab.about)
         }
@@ -447,4 +451,3 @@ private struct ShortcutsTabView: View {
         }
     }
 }
-

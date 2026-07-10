@@ -9,6 +9,7 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @ObservedObject var state: AppState
     @ObservedObject var updater: UpdateChecker
+    @ObservedObject var agents: AgentIntegrationController
     @State private var newTaskTitle = ""
     @State private var searchText = ""
     @State private var showThemePicker = false
@@ -18,6 +19,7 @@ struct ContentView: View {
     @State private var toastVisible = false
     @State private var toastText = ""
     @State private var toastWorkItem: DispatchWorkItem?
+    @State private var showingAgent = false
     @FocusState private var addTaskFocused: Bool
     @FocusState private var searchFocused: Bool
 
@@ -27,63 +29,23 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 0) {
             // ── 分区标签栏 ──
-            SectionTabBar().environmentObject(state)
+            SectionTabBar(agents: agents, showingAgent: $showingAgent).environmentObject(state)
                 .padding(.top, 8).padding(.bottom, 6)
 
             Rectangle().fill(theme.border.opacity(0.15)).frame(height: 0.5)
 
-            // ── 页面头部 ──
-            headerToolbar
-
-            Rectangle().fill(theme.border.opacity(0.15)).frame(height: 0.5)
-
-            // ── 搜索栏 & 输入框容器 ──
-            VStack(spacing: 8) {
-                if showSearchBar { searchBar }
-
-                // 添加任务输入框
-                HStack(spacing: 8) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(addTaskFocused || !newTaskTitle.isEmpty ? theme.accent : theme.t3)
-                    ZStack(alignment: .leading) {
-                        if newTaskTitle.isEmpty {
-                            Text(L("task.add_placeholder"))
-                                .font(.system(size: 14))
-                                .foregroundColor(addTaskFocused ? theme.t3.opacity(0.3) : theme.t3)
-                                .allowsHitTesting(false)
-                        }
-                        TextField("", text: $newTaskTitle)
-                            .textFieldStyle(.plain).font(.system(size: 14)).foregroundColor(theme.t1)
-                            .focused($addTaskFocused)
-                            .onSubmit { submitNewTask() }
+            if showingAgent {
+                AgentSectionView(state: state, agents: agents) { taskID in
+                    if state.locateTask(id: taskID) {
+                        showingAgent = false
                     }
                 }
-                .padding(.horizontal, 14).padding(.vertical, 8)
-                .background(theme.surface.opacity(0.6)).cornerRadius(8)
-            }
-            .padding(.horizontal, 24).padding(.top, 12).padding(.bottom, 8)
-
-            // ── 任务列表 ──
-            ScrollView {
-                LazyVStack(spacing: 2) {
-                    if let s = section {
-                        let filtered = searchText.isEmpty ? s.tasks : s.tasks.filter {
-                            $0.title.localizedCaseInsensitiveContains(searchText) ||
-                            $0.logs.contains { $0.text.localizedCaseInsensitiveContains(searchText) }
-                        }
-                        ForEach(Array(filtered.enumerated()), id: \.element.id) { i, task in
-                            TaskRowView(task: task, index: i).environmentObject(state)
-                                .transition(.asymmetric(
-                                    insertion: .scale(scale: 0.97).combined(with: .opacity),
-                                    removal: .scale(scale: 0.97).combined(with: .opacity)))
-                        }
-                    }
-                    ArchiveSectionView().environmentObject(state).padding(.top, 12)
-                }
-                .padding(.horizontal, 20).padding(.bottom, 20).padding(.top, 4)
+            } else {
+                ordinarySectionContent
             }
         }
+        .onChange(of: state.activeSectionId) { _, _ in showingAgent = false }
+        .onChange(of: state.ordinarySectionNavigationRevision) { _, _ in showingAgent = false }
         .onChange(of: state.focusNewTask) { _, focus in
             if focus { addTaskFocused = true; state.focusNewTask = false }
         }
@@ -193,7 +155,12 @@ struct ContentView: View {
                 // 更新提示按钮
                 if updater.hasUpdate {
                     Button(action: {
-                        SettingsWindowController.shared.open(state: state, updater: updater, tab: .update)
+                        SettingsWindowController.shared.open(
+                            state: state,
+                            updater: updater,
+                            agents: agents,
+                            tab: .update
+                        )
                     }) {
                         Image(systemName: "arrow.down.circle.fill")
                             .font(.system(size: 14, weight: .medium))
@@ -232,6 +199,62 @@ struct ContentView: View {
             }
         }
         .padding(.horizontal, 24).padding(.top, 10).padding(.bottom, 10)
+    }
+
+    private var ordinarySectionContent: some View {
+        Group {
+            // ── 页面头部 ──
+            headerToolbar
+
+            Rectangle().fill(theme.border.opacity(0.15)).frame(height: 0.5)
+
+            // ── 搜索栏 & 输入框容器 ──
+            VStack(spacing: 8) {
+                if showSearchBar { searchBar }
+
+                // 添加任务输入框
+                HStack(spacing: 8) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(addTaskFocused || !newTaskTitle.isEmpty ? theme.accent : theme.t3)
+                    ZStack(alignment: .leading) {
+                        if newTaskTitle.isEmpty {
+                            Text(L("task.add_placeholder"))
+                                .font(.system(size: 14))
+                                .foregroundColor(addTaskFocused ? theme.t3.opacity(0.3) : theme.t3)
+                                .allowsHitTesting(false)
+                        }
+                        TextField("", text: $newTaskTitle)
+                            .textFieldStyle(.plain).font(.system(size: 14)).foregroundColor(theme.t1)
+                            .focused($addTaskFocused)
+                            .onSubmit { submitNewTask() }
+                    }
+                }
+                .padding(.horizontal, 14).padding(.vertical, 8)
+                .background(theme.surface.opacity(0.6)).cornerRadius(8)
+            }
+            .padding(.horizontal, 24).padding(.top, 12).padding(.bottom, 8)
+
+            // ── 任务列表 ──
+            ScrollView {
+                LazyVStack(spacing: 2) {
+                    if let s = section {
+                        let filtered = searchText.isEmpty ? s.tasks : s.tasks.filter {
+                            $0.title.localizedCaseInsensitiveContains(searchText) ||
+                            $0.logs.contains { $0.text.localizedCaseInsensitiveContains(searchText) }
+                        }
+                        ForEach(Array(filtered.enumerated()), id: \.element.id) { i, task in
+                            TaskRowView(task: task, index: i).environmentObject(state)
+                                .transition(.asymmetric(
+                                    insertion: .scale(scale: 0.97).combined(with: .opacity),
+                                    removal: .scale(scale: 0.97).combined(with: .opacity)))
+                        }
+                    }
+                    ArchiveSectionView().environmentObject(state).padding(.top, 12)
+                }
+                .padding(.horizontal, 20).padding(.bottom, 20).padding(.top, 4)
+            }
+        }
     }
 
     // ── 搜索栏 ──

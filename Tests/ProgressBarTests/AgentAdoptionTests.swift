@@ -248,6 +248,90 @@ final class AgentAdoptionTests: XCTestCase {
     }
 
     @MainActor
+    func testAdoptionPresentationUsesMappedTaskIDAndActualTaskExistence() async throws {
+        let store = try await makeStore()
+        let controller = makeController(store: store)
+        let sink = FakeUserTaskSink()
+        let item = makeItem()
+        let taskID = try await controller.adopt(
+            item: item,
+            sessionTitle: "Adoption",
+            editedTitle: item.title,
+            targetSectionID: "section-1",
+            taskSink: sink
+        )
+
+        XCTAssertEqual(
+            controller.adoptionPresentation(for: item.key, taskSink: sink),
+            .adopted(taskID: taskID)
+        )
+
+        sink.tasks.removeValue(forKey: taskID)
+        XCTAssertEqual(
+            controller.adoptionPresentation(for: item.key, taskSink: sink),
+            .adoptedTaskMissing(taskID: taskID)
+        )
+    }
+
+    @MainActor
+    func testPendingAdoptionWithWrittenTaskStillRequiresRecoveryRetry() async throws {
+        let store = try await makeStore()
+        let controller = makeController(store: store)
+        let sink = FakeUserTaskSink()
+        let item = makeItem()
+        let adoption = try await store.reserveAdoption(
+            key: item.key,
+            taskID: "fixed-task-id",
+            sectionID: "section-1",
+            at: Date(timeIntervalSince1970: 1_700_000_000)
+        )
+        sink.tasks[adoption.progressBarTaskID] = TaskItem(
+            id: adoption.progressBarTaskID,
+            title: item.title,
+            status: .pending,
+            deadline: "",
+            logs: [],
+            completedAt: nil
+        )
+        await controller.refresh()
+
+        XCTAssertEqual(
+            controller.adoptionPresentation(for: item.key, taskSink: sink),
+            .retry(taskID: adoption.progressBarTaskID)
+        )
+    }
+
+    @MainActor
+    func testLocateTaskSelectsOwningOrdinarySection() {
+        let targetTask = TaskItem(
+            id: "target-task",
+            title: "Target",
+            status: .pending,
+            deadline: "",
+            logs: [],
+            completedAt: nil
+        )
+        let sections = [
+            TaskSection(id: "first", name: "First", tasks: [], archived: []),
+            TaskSection(id: "second", name: "Second", tasks: [targetTask], archived: [])
+        ]
+        let (state, _) = makeAppState(saveSucceeds: true, sections: sections)
+
+        XCTAssertTrue(state.locateTask(id: targetTask.id))
+        XCTAssertEqual(state.activeSectionId, "second")
+    }
+
+    @MainActor
+    func testSelectingCurrentOrdinarySectionStillPublishesNavigationIntent() {
+        let (state, _) = makeAppState(saveSucceeds: true)
+        let initialRevision = state.ordinarySectionNavigationRevision
+
+        state.switchToSection(at: 0)
+
+        XCTAssertEqual(state.ordinarySectionNavigationRevision, initialRevision + 1)
+    }
+
+    @MainActor
     func testInsertFailureMarksReservationFailed() async throws {
         let store = try await makeStore()
         let controller = makeController(store: store)

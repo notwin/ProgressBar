@@ -88,7 +88,9 @@ struct AgentSourceState: Equatable, Sendable {
 struct AgentDashboard: Equatable, Sendable {
     let projects: [AgentProjectSnapshot]
     let sourceStates: [AgentSourceState]
-    let adoptedKeys: Set<AgentItemKey>
+    let adoptions: [AgentItemKey: AgentAdoptionRecord]
+
+    var adoptedKeys: Set<AgentItemKey> { Set(adoptions.keys) }
 }
 
 enum AgentAdoptionState: String, Codable, Sendable { case pending, completed, failed }
@@ -98,6 +100,13 @@ struct AgentAdoptionRecord: Equatable, Sendable {
     let targetSectionID: String
     let state: AgentAdoptionState
     let adoptedAt: Date
+}
+
+enum AgentAdoptionPresentation: Equatable, Sendable {
+    case available
+    case retry(taskID: String)
+    case adopted(taskID: String)
+    case adoptedTaskMissing(taskID: String)
 }
 
 protocol AgentConnector: Sendable {
