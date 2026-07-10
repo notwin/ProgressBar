@@ -19,6 +19,7 @@ jindu
 # IDE & Tools
 .omc/
 .claude/
+.superpowers/
 
 # MCP Server
 mcp-server/node_modules/
