@@ -116,6 +116,41 @@ private actor AgentRefreshWorker {
         }
     }
 
+    func adoption(for key: AgentItemKey) async throws -> AgentAdoptionRecord? {
+        let store = try await loadStore()
+        return try await store.adoption(for: key)
+    }
+
+    func reserveAdoption(
+        key: AgentItemKey,
+        taskID: String,
+        sectionID: String,
+        at: Date
+    ) async throws -> AgentAdoptionRecord {
+        let store = try await loadStore()
+        return try await store.reserveAdoption(
+            key: key,
+            taskID: taskID,
+            sectionID: sectionID,
+            at: at
+        )
+    }
+
+    func completeAdoption(key: AgentItemKey) async throws {
+        let store = try await loadStore()
+        try await store.completeAdoption(key: key)
+    }
+
+    func failAdoption(key: AgentItemKey) async throws {
+        let store = try await loadStore()
+        try await store.failAdoption(key: key)
+    }
+
+    func dashboard(includeHistory: Bool) async throws -> AgentDashboard {
+        let store = try await loadStore()
+        return try await store.dashboard(includeHistory: includeHistory)
+    }
+
     private func loadStore() async throws -> AgentStore {
         if let store { return store }
         if let storeInitializationError {
@@ -158,6 +193,10 @@ private enum AgentIntegrationError: Error, LocalizedError {
         case let .storeUnavailable(message): return message
         }
     }
+}
+
+enum AgentAdoptionError: Error, Equatable {
+    case userTaskWriteFailed
 }
 
 private final class AgentLifecycleToken: @unchecked Sendable {}
@@ -319,6 +358,53 @@ final class AgentIntegrationController: ObservableObject {
     func refresh() async {
         let task = requestRefresh(token: lifecycleToken)
         await task.value
+    }
+
+    func adopt(
+        item: AgentItemSnapshot,
+        sessionTitle: String,
+        editedTitle: String,
+        targetSectionID: String,
+        taskSink: UserTaskAdopting
+    ) async throws -> String {
+        let adoption: AgentAdoptionRecord
+        if let existing = try await worker.adoption(for: item.key) {
+            adoption = existing
+        } else {
+            adoption = try await worker.reserveAdoption(
+                key: item.key,
+                taskID: UUID().uuidString.lowercased(),
+                sectionID: targetSectionID,
+                at: Date()
+            )
+        }
+
+        if taskSink.containsTask(id: adoption.progressBarTaskID) {
+            try await worker.completeAdoption(key: item.key)
+            dashboard = try await worker.dashboard(includeHistory: showingHistory)
+            return adoption.progressBarTaskID
+        }
+
+        let sourceName: String
+        switch item.key.source {
+        case .claude: sourceName = "Claude Code"
+        case .codex: sourceName = "Codex"
+        }
+        let inserted = taskSink.insertAdoptedTask(
+            id: adoption.progressBarTaskID,
+            title: editedTitle,
+            status: item.status.taskStatus,
+            sectionID: adoption.targetSectionID,
+            logText: "从 \(sourceName) 会话「\(sessionTitle)」接管"
+        )
+        guard inserted else {
+            try await worker.failAdoption(key: item.key)
+            throw AgentAdoptionError.userTaskWriteFailed
+        }
+
+        try await worker.completeAdoption(key: item.key)
+        dashboard = try await worker.dashboard(includeHistory: showingHistory)
+        return adoption.progressBarTaskID
     }
 
     private func requestRefresh(token: AgentLifecycleToken) -> Task<Void, Never> {

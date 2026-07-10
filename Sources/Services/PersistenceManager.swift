@@ -89,7 +89,8 @@ class PersistenceManager {
     }
 
     /// 将当前数据保存到磁盘
-    func save(appData: AppData) {
+    @discardableResult
+    func save(appData: AppData) -> Bool {
         saveGeneration &+= 1
         do {
             let data = try JSONEncoder().encode(appData)
@@ -98,10 +99,13 @@ class PersistenceManager {
                 let local = Self.localDir.appendingPathComponent("data.json")
                 try? data.write(to: local, options: .atomic)
             }
+            lastFileDate = fileModDate()
+            return true
         } catch {
             onError?("数据保存失败: \(error.localizedDescription)")
+            lastFileDate = fileModDate()
+            return false
         }
-        lastFileDate = fileModDate()
     }
 
     /// 获取数据文件的最后修改时间

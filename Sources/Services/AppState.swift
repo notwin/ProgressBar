@@ -6,9 +6,23 @@ import SwiftUI
 import AppKit
 import EventKit
 
+@MainActor
+protocol UserTaskAdopting: AnyObject {
+    func containsTask(id: String) -> Bool
+
+    @discardableResult
+    func insertAdoptedTask(
+        id: String,
+        title: String,
+        status: TaskStatus,
+        sectionID: String,
+        logText: String
+    ) -> Bool
+}
+
 /// 全局应用状态：管理所有分区、任务、主题，负责数据持久化与 iCloud 同步
 @MainActor
-class AppState: ObservableObject {
+class AppState: ObservableObject, UserTaskAdopting {
     @Published var sections: [TaskSection] = []
     @Published var activeSectionId: String = ""
     @Published var themeId: String = "obsidian"
@@ -22,7 +36,7 @@ class AppState: ObservableObject {
     @Published var syncedTaskIds: Set<String> = []
 
     let calendarManager = CalendarManager()
-    let persistence = PersistenceManager()
+    let persistence: PersistenceManager
     private var syncTimer: Timer?
 
     var theme: ThemeColors {
@@ -39,27 +53,35 @@ class AppState: ObservableObject {
 
     private var appearanceObserver: NSObjectProtocol?
 
-    init() {
+    convenience init() {
+        self.init(persistence: PersistenceManager(), initializeServices: true)
+    }
+
+    init(persistence: PersistenceManager, initializeServices: Bool) {
+        self.persistence = persistence
+
         // 连接错误报告
         calendarManager.onError = { [weak self] msg in self?.saveError = msg }
         persistence.onError = { [weak self] msg in self?.saveError = msg }
 
         iCloudAvailable = persistence.iCloudAvailable
         load()
-        calendarManager.initializeIfAuthorized()
-        syncedTaskIds = calendarManager.syncedTaskIds
-        syncTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
-            let s = self
-            Task { @MainActor in s?.checkRemoteChanges() }
-        }
-        // 监听系统外观变化，自动模式下刷新主题
-        appearanceObserver = DistributedNotificationCenter.default().addObserver(
-            forName: Notification.Name("AppleInterfaceThemeChangedNotification"),
-            object: nil, queue: .main
-        ) { [weak self] _ in
-            let s = self
-            Task { @MainActor in
-                if s?.themeId == "auto" { s?.objectWillChange.send() }
+        if initializeServices {
+            calendarManager.initializeIfAuthorized()
+            syncedTaskIds = calendarManager.syncedTaskIds
+            syncTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
+                let s = self
+                Task { @MainActor in s?.checkRemoteChanges() }
+            }
+            // 监听系统外观变化，自动模式下刷新主题
+            appearanceObserver = DistributedNotificationCenter.default().addObserver(
+                forName: Notification.Name("AppleInterfaceThemeChangedNotification"),
+                object: nil, queue: .main
+            ) { [weak self] _ in
+                let s = self
+                Task { @MainActor in
+                    if s?.themeId == "auto" { s?.objectWillChange.send() }
+                }
             }
         }
     }
@@ -134,9 +156,10 @@ class AppState: ObservableObject {
     }
 
     /// 将当前数据保存到磁盘（iCloud 可用时同时备份到本地）
-    func save() {
+    @discardableResult
+    func save() -> Bool {
         let appData = AppData(sections: sections, themeId: themeId, activeSectionId: activeSectionId)
-        persistence.save(appData: appData)
+        return persistence.save(appData: appData)
     }
 
     /// 检查远程文件是否有更新（iCloud 同步用）
@@ -221,8 +244,68 @@ class AppState: ObservableObject {
     func addTask(title: String, to sectionId: String) {
         guard let i = sections.firstIndex(where: { $0.id == sectionId }) else { return }
         let t = TaskItem(id: generateID(), title: title, status: .pending, deadline: "", logs: [], completedAt: nil)
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) { sections[i].tasks.insert(t, at: 0) }
-        save()
+        insertTask(
+            t,
+            intoSectionAt: i,
+            animation: .spring(response: 0.35, dampingFraction: 0.8),
+            rollbackOnSaveFailure: false
+        )
+    }
+
+    func containsTask(id: String) -> Bool {
+        sections.contains { section in
+            section.tasks.contains { $0.id == id } || section.archived.contains { $0.id == id }
+        }
+    }
+
+    @discardableResult
+    func insertAdoptedTask(
+        id: String,
+        title: String,
+        status: TaskStatus,
+        sectionID: String,
+        logText: String
+    ) -> Bool {
+        if containsTask(id: id) { return true }
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTitle.isEmpty,
+              let sectionIndex = sections.firstIndex(where: { $0.id == sectionID })
+        else {
+            return false
+        }
+        let task = TaskItem(
+            id: id,
+            title: trimmedTitle,
+            status: status,
+            deadline: "",
+            logs: [LogEntry(id: generateID(), date: today(), text: logText)],
+            completedAt: nil
+        )
+        return insertTask(
+            task,
+            intoSectionAt: sectionIndex,
+            animation: nil,
+            rollbackOnSaveFailure: true
+        )
+    }
+
+    @discardableResult
+    private func insertTask(
+        _ task: TaskItem,
+        intoSectionAt sectionIndex: Int,
+        animation: Animation?,
+        rollbackOnSaveFailure: Bool
+    ) -> Bool {
+        if let animation {
+            withAnimation(animation) { sections[sectionIndex].tasks.insert(task, at: 0) }
+        } else {
+            sections[sectionIndex].tasks.insert(task, at: 0)
+        }
+        let saved = save()
+        if !saved, rollbackOnSaveFailure {
+            sections[sectionIndex].tasks.removeAll { $0.id == task.id }
+        }
+        return saved
     }
 
     /// 删除指定任务（同步移除日历事件）
