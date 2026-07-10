@@ -23,6 +23,10 @@ private final class FoundationAgentPollCancellation: AgentPollCancellation {
         self.timer = timer
     }
 
+    deinit {
+        timer?.invalidate()
+    }
+
     func cancel() {
         timer?.invalidate()
         timer = nil
@@ -156,6 +160,8 @@ private enum AgentIntegrationError: Error, LocalizedError {
     }
 }
 
+private final class AgentLifecycleToken: @unchecked Sendable {}
+
 @MainActor
 final class AgentIntegrationController: ObservableObject {
     @Published private(set) var dashboard = AgentDashboard(
@@ -171,28 +177,40 @@ final class AgentIntegrationController: ObservableObject {
     private let worker: AgentRefreshWorker
     private let notificationCenter: NotificationCenter
     private let pollScheduler: any AgentPollScheduling
-    private var directoryMonitor: DirectoryChangeMonitor?
+    private let directoryMonitor: (any AgentDirectoryMonitoring)?
+    private let applicationIsActiveProvider: @MainActor () -> Bool
     private var notificationObservers: [NSObjectProtocol] = []
     private var pollCancellation: (any AgentPollCancellation)?
-    private var initialRefreshTask: Task<Void, Never>?
+    private var refreshTask: Task<Void, Never>?
+    private var refreshExecutionTail: Task<Void, Never>?
+    private var activeRefreshRunID: UInt64?
+    private var nextRefreshRunID: UInt64 = 0
+    private var lifecycleToken = AgentLifecycleToken()
     private var isStarted = false
     private var isVisible = false
     private var applicationIsActive: Bool
     private var refreshPending = false
-    private var refreshRunning = false
 
     init(
         store: AgentStore,
         connectors: [any AgentConnector],
         notificationCenter: NotificationCenter = .default,
         pollScheduler: (any AgentPollScheduling)? = nil,
+        directoryMonitor: (any AgentDirectoryMonitoring)? = nil,
         applicationIsActive: Bool? = nil,
+        applicationIsActiveProvider: (@MainActor () -> Bool)? = nil,
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         worker = AgentRefreshWorker(store: store, connectors: connectors, now: now)
         self.notificationCenter = notificationCenter
         self.pollScheduler = pollScheduler ?? FoundationAgentPollScheduler()
-        self.applicationIsActive = applicationIsActive ?? NSApplication.shared.isActive
+        self.directoryMonitor = directoryMonitor
+        let initialApplicationIsActive = applicationIsActive
+        let provider = applicationIsActiveProvider ?? {
+            initialApplicationIsActive ?? NSApplication.shared.isActive
+        }
+        self.applicationIsActiveProvider = provider
+        self.applicationIsActive = provider()
     }
 
     private init(
@@ -201,7 +219,9 @@ final class AgentIntegrationController: ObservableObject {
         connectorLoader: @escaping @Sendable () -> [any AgentConnector],
         notificationCenter: NotificationCenter = .default,
         pollScheduler: (any AgentPollScheduling)? = nil,
+        directoryMonitor: (any AgentDirectoryMonitoring)? = nil,
         applicationIsActive: Bool? = nil,
+        applicationIsActiveProvider: (@MainActor () -> Bool)? = nil,
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         worker = AgentRefreshWorker(
@@ -212,12 +232,31 @@ final class AgentIntegrationController: ObservableObject {
         )
         self.notificationCenter = notificationCenter
         self.pollScheduler = pollScheduler ?? FoundationAgentPollScheduler()
-        self.applicationIsActive = applicationIsActive ?? NSApplication.shared.isActive
+        self.directoryMonitor = directoryMonitor
+        let initialApplicationIsActive = applicationIsActive
+        let provider = applicationIsActiveProvider ?? {
+            initialApplicationIsActive ?? NSApplication.shared.isActive
+        }
+        self.applicationIsActiveProvider = provider
+        self.applicationIsActive = provider()
+    }
+
+    deinit {
+        let pollCancellation = pollCancellation
+        let notificationObservers = notificationObservers
+        let notificationCenter = notificationCenter
+        refreshTask?.cancel()
+        directoryMonitor?.stop()
+        Task { @MainActor in
+            pollCancellation?.cancel()
+            notificationObservers.forEach(notificationCenter.removeObserver)
+        }
     }
 
     static func live() -> AgentIntegrationController {
         let home = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
         let tasksRoot = home.appendingPathComponent(".claude/tasks")
+        let directoryMonitor = DirectoryChangeMonitor(tasksRoot: tasksRoot)
         let controller = AgentIntegrationController(
             databaseURL: PersistenceManager.localDir.appendingPathComponent("agent-index.sqlite"),
             sources: [.claude, .codex],
@@ -233,32 +272,36 @@ final class AgentIntegrationController: ObservableObject {
                         )
                     )
                 ]
-            }
+            },
+            directoryMonitor: directoryMonitor
         )
-        controller.directoryMonitor = DirectoryChangeMonitor(tasksRoot: tasksRoot) { [weak controller] in
-            Task { @MainActor in
-                await controller?.refresh()
-            }
-        }
         return controller
     }
 
     func start() {
         guard !isStarted else { return }
+        lifecycleToken = AgentLifecycleToken()
+        let token = lifecycleToken
         isStarted = true
-        registerApplicationNotifications()
-        directoryMonitor?.start()
-        updatePolling()
-        initialRefreshTask = Task { [weak self] in
-            await self?.refresh()
+        applicationIsActive = applicationIsActiveProvider()
+        registerApplicationNotifications(token: token)
+        directoryMonitor?.start { [weak self, token] in
+            await self?.refreshFromExternalTrigger(token: token)
         }
+        updatePolling(token: token)
+        _ = requestRefresh(token: token)
     }
 
     func stop() {
         guard isStarted else { return }
+        let task = refreshTask
+        lifecycleToken = AgentLifecycleToken()
         isStarted = false
-        initialRefreshTask?.cancel()
-        initialRefreshTask = nil
+        refreshPending = false
+        refreshTask = nil
+        activeRefreshRunID = nil
+        isRefreshing = false
+        task?.cancel()
         stopPolling()
         directoryMonitor?.stop()
         notificationObservers.forEach(notificationCenter.removeObserver)
@@ -267,57 +310,120 @@ final class AgentIntegrationController: ObservableObject {
 
     func setVisible(_ visible: Bool) {
         isVisible = visible
-        updatePolling()
+        updatePolling(token: lifecycleToken)
     }
 
     func refresh() async {
-        if refreshRunning {
-            refreshPending = true
-            return
-        }
-
-        refreshRunning = true
-        isRefreshing = true
-        defer {
-            isRefreshing = false
-            refreshRunning = false
-        }
-        repeat {
-            refreshPending = false
-            dashboard = await worker.performPass(includeHistory: showingHistory)
-        } while refreshPending
+        let task = requestRefresh(token: lifecycleToken)
+        await task.value
     }
 
-    private func registerApplicationNotifications() {
+    private func requestRefresh(token: AgentLifecycleToken) -> Task<Void, Never> {
+        guard token === lifecycleToken else { return Task {} }
+        if let refreshTask {
+            refreshPending = true
+            return refreshTask
+        }
+
+        nextRefreshRunID &+= 1
+        let runID = nextRefreshRunID
+        let predecessor = refreshExecutionTail
+        activeRefreshRunID = runID
+        isRefreshing = true
+        let task = Task { @MainActor [weak self, token] in
+            defer { self?.finishRefresh(token: token, runID: runID) }
+            await predecessor?.value
+            while !Task.isCancelled {
+                guard let pass = self?.prepareRefreshPass(token: token, runID: runID) else {
+                    return
+                }
+                let refreshedDashboard = await pass.worker.performPass(
+                    includeHistory: pass.includeHistory
+                )
+                guard !Task.isCancelled,
+                      let shouldContinue = self?.publish(
+                        refreshedDashboard,
+                        token: token,
+                        runID: runID
+                      )
+                else {
+                    return
+                }
+                if !shouldContinue { return }
+            }
+        }
+        refreshTask = task
+        refreshExecutionTail = task
+        return task
+    }
+
+    private func prepareRefreshPass(
+        token: AgentLifecycleToken,
+        runID: UInt64
+    ) -> (worker: AgentRefreshWorker, includeHistory: Bool)? {
+        guard isCurrent(token: token, runID: runID) else { return nil }
+        refreshPending = false
+        return (worker, showingHistory)
+    }
+
+    private func publish(
+        _ refreshedDashboard: AgentDashboard,
+        token: AgentLifecycleToken,
+        runID: UInt64
+    ) -> Bool? {
+        guard isCurrent(token: token, runID: runID) else { return nil }
+        dashboard = refreshedDashboard
+        return refreshPending
+    }
+
+    private func finishRefresh(token: AgentLifecycleToken, runID: UInt64) {
+        guard isCurrent(token: token, runID: runID) else { return }
+        refreshTask = nil
+        activeRefreshRunID = nil
+        isRefreshing = false
+    }
+
+    private func isCurrent(token: AgentLifecycleToken, runID: UInt64) -> Bool {
+        token === lifecycleToken && activeRefreshRunID == runID
+    }
+
+    private func refreshFromExternalTrigger(token: AgentLifecycleToken) async {
+        guard isStarted, token === lifecycleToken else { return }
+        let task = requestRefresh(token: token)
+        await task.value
+    }
+
+    private func registerApplicationNotifications(token: AgentLifecycleToken) {
         notificationObservers.append(notificationCenter.addObserver(
             forName: NSApplication.didResignActiveNotification,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
+        ) { [weak self, token] _ in
             Task { @MainActor in
-                self?.applicationIsActive = false
-                self?.updatePolling()
+                guard let self, self.isStarted, token === self.lifecycleToken else { return }
+                self.applicationIsActive = false
+                self.updatePolling(token: token)
             }
         })
         notificationObservers.append(notificationCenter.addObserver(
             forName: NSApplication.didBecomeActiveNotification,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
+        ) { [weak self, token] _ in
             Task { @MainActor in
-                self?.applicationIsActive = true
-                self?.updatePolling()
+                guard let self, self.isStarted, token === self.lifecycleToken else { return }
+                self.applicationIsActive = true
+                self.updatePolling(token: token)
             }
         })
     }
 
-    private func updatePolling() {
+    private func updatePolling(token: AgentLifecycleToken) {
         stopPolling()
-        guard isStarted, isVisible, applicationIsActive else { return }
-        pollCancellation = pollScheduler.schedule(every: Self.pollingInterval) { [weak self] in
-            Task { @MainActor in
-                await self?.refresh()
-            }
+        guard isStarted, token === lifecycleToken, isVisible, applicationIsActive else { return }
+        pollCancellation = pollScheduler.schedule(every: Self.pollingInterval) { [weak self, token] in
+            guard let self, self.isStarted, token === self.lifecycleToken else { return }
+            _ = self.requestRefresh(token: token)
         }
     }
 

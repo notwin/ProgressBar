@@ -1,13 +1,19 @@
 import Darwin
 import Foundation
 
-final class DirectoryChangeMonitor: @unchecked Sendable {
+protocol AgentDirectoryMonitoring: AnyObject, Sendable {
+    func start(onChange: @escaping @Sendable () async -> Void)
+    func stop()
+}
+
+final class DirectoryChangeMonitor: AgentDirectoryMonitoring, @unchecked Sendable {
     static let defaultDebounceInterval: TimeInterval = 1
 
     private let tasksRoot: URL
     private let debounceInterval: TimeInterval
-    private let callback: @Sendable () -> Void
-    private let queue = DispatchQueue(label: "progressbar.agent-directory-monitor")
+    private let initialCallback: (@Sendable () -> Void)?
+    private var changeHandler: (@Sendable () async -> Void)?
+    private let queue: DispatchQueue
     private let queueKey = DispatchSpecificKey<UInt8>()
     private var sources: [String: DispatchSourceFileSystemObject] = [:]
     private var pendingCallback: DispatchWorkItem?
@@ -16,12 +22,14 @@ final class DirectoryChangeMonitor: @unchecked Sendable {
     init(
         tasksRoot: URL,
         debounceInterval: TimeInterval = DirectoryChangeMonitor.defaultDebounceInterval,
-        callback: @escaping @Sendable () -> Void
+        queue: DispatchQueue? = nil,
+        callback: (@Sendable () -> Void)? = nil
     ) {
         self.tasksRoot = tasksRoot.standardizedFileURL
         self.debounceInterval = debounceInterval
-        self.callback = callback
-        queue.setSpecific(key: queueKey, value: 1)
+        self.initialCallback = callback
+        self.queue = queue ?? DispatchQueue(label: "progressbar.agent-directory-monitor")
+        self.queue.setSpecific(key: queueKey, value: 1)
     }
 
     deinit {
@@ -29,10 +37,33 @@ final class DirectoryChangeMonitor: @unchecked Sendable {
     }
 
     func start() {
-        synchronized {
-            guard !isStarted else { return }
-            isStarted = true
-            refreshWatchedDirectories()
+        enqueueStart(onChange: nil, onReady: {})
+    }
+
+    func start(onReady: @escaping @Sendable () -> Void) {
+        enqueueStart(onChange: nil, onReady: onReady)
+    }
+
+    func start(onChange: @escaping @Sendable () async -> Void) {
+        enqueueStart(onChange: onChange, onReady: {})
+    }
+
+    private func enqueueStart(
+        onChange: (@Sendable () async -> Void)?,
+        onReady: @escaping @Sendable () -> Void
+    ) {
+        queue.async { [weak self] in
+            guard let self else { return }
+            if let onChange {
+                self.changeHandler = onChange
+            }
+            guard !self.isStarted else {
+                onReady()
+                return
+            }
+            self.isStarted = true
+            self.refreshWatchedDirectories()
+            onReady()
         }
     }
 
@@ -42,6 +73,7 @@ final class DirectoryChangeMonitor: @unchecked Sendable {
             isStarted = false
             pendingCallback?.cancel()
             pendingCallback = nil
+            changeHandler = nil
             let activeSources = Array(sources.values)
             sources.removeAll()
             activeSources.forEach { $0.cancel() }
@@ -70,7 +102,14 @@ final class DirectoryChangeMonitor: @unchecked Sendable {
     }
 
     private func watchedDirectoryURLs() -> [URL] {
-        var urls = [tasksRoot.deletingLastPathComponent(), tasksRoot]
+        let tasksParent = tasksRoot.deletingLastPathComponent()
+        guard isDirectory(tasksParent) else {
+            return [nearestExistingAncestor(startingAt: tasksParent)]
+        }
+
+        var urls = [tasksParent]
+        guard isDirectory(tasksRoot) else { return urls }
+        urls.append(tasksRoot)
         let sessionDirectories = (try? FileManager.default.contentsOfDirectory(
             at: tasksRoot,
             includingPropertiesForKeys: [.isDirectoryKey],
@@ -80,6 +119,22 @@ final class DirectoryChangeMonitor: @unchecked Sendable {
             (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
         })
         return urls.sorted { $0.path < $1.path }
+    }
+
+    private func nearestExistingAncestor(startingAt url: URL) -> URL {
+        var candidate = url.standardizedFileURL
+        while !isDirectory(candidate) {
+            let parent = candidate.deletingLastPathComponent()
+            guard parent.path != candidate.path else { return parent }
+            candidate = parent
+        }
+        return candidate
+    }
+
+    private func isDirectory(_ url: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
+            && isDirectory.boolValue
     }
 
     private func addSource(for url: URL) {
@@ -113,7 +168,11 @@ final class DirectoryChangeMonitor: @unchecked Sendable {
             guard let self, self.isStarted else { return }
             self.pendingCallback = nil
             self.refreshWatchedDirectories()
-            self.callback()
+            if let changeHandler = self.changeHandler {
+                Task { await changeHandler() }
+            } else {
+                self.initialCallback?()
+            }
         }
         pendingCallback = workItem
         queue.asyncAfter(deadline: .now() + debounceInterval, execute: workItem)
