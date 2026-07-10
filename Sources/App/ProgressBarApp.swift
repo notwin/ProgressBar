@@ -124,11 +124,15 @@ struct ProgressBarApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var state = AppState()
     @StateObject private var updater = UpdateChecker()
+    @StateObject private var agents = AgentIntegrationController.live()
 
     var body: some Scene {
         WindowGroup(L("about.name")) {
             ContentView(state: state, updater: updater)
+                .environmentObject(agents)
                 .frame(minWidth: 600, minHeight: 400)
+                .task { agents.start() }
+                .onDisappear { agents.stop() }
                 .background(WindowAccessor { window in
                     AppSetup.shared.setup(state: state, updater: updater, window: window)
                 })
