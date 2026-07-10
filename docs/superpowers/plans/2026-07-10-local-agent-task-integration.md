@@ -328,8 +328,10 @@ final class AgentStoreTests: XCTestCase {
     func testCompletedRowsAreHiddenFromActiveDashboard() async throws {
         let store = try await makeStore()
         try await store.apply(snapshot: AgentFixtures.snapshot(status: .done))
-        XCTAssertTrue(try await store.dashboard(includeHistory: false).projects.isEmpty)
-        XCTAssertEqual(try await store.dashboard(includeHistory: true).projects.count, 1)
+        let active = try await store.dashboard(includeHistory: false)
+        let history = try await store.dashboard(includeHistory: true)
+        XCTAssertTrue(active.projects.isEmpty)
+        XCTAssertEqual(history.projects.count, 1)
     }
 
     func testCorruptDatabaseIsBackedUpAndRebuilt() async throws {
@@ -338,7 +340,8 @@ final class AgentStoreTests: XCTestCase {
         let url = dir.appendingPathComponent("agent.sqlite")
         try Data("not a sqlite database".utf8).write(to: url)
         let store = try await AgentStore(databaseURL: url)
-        XCTAssertTrue(try await store.dashboard(includeHistory: false).projects.isEmpty)
+        let dashboard = try await store.dashboard(includeHistory: false)
+        XCTAssertTrue(dashboard.projects.isEmpty)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dir.path)
             .filter { $0.hasPrefix("agent.sqlite.corrupt.") }.count, 1)
     }
