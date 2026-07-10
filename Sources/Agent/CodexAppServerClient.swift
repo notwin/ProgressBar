@@ -1,5 +1,6 @@
 import Foundation
 import CoreFoundation
+import Darwin
 
 protocol CodexRPCTransport: Sendable {
     func start() async throws
@@ -129,7 +130,7 @@ actor CodexProcessTransport: CodexRPCTransport, CodexNotificationTransport {
 
         standardOutputTask = Task.detached(priority: .utility) { [weak self] in
             while !Task.isCancelled {
-                guard let data = try? outputHandle.read(upToCount: 4_096),
+                guard let data = Self.readPipeChunk(outputHandle, maximumBytes: 4_096),
                       !data.isEmpty else {
                     break
                 }
@@ -138,7 +139,7 @@ actor CodexProcessTransport: CodexRPCTransport, CodexNotificationTransport {
         }
         standardErrorTask = Task.detached(priority: .utility) { [weak self] in
             while !Task.isCancelled {
-                guard let data = try? errorHandle.read(upToCount: 4_096),
+                guard let data = Self.readPipeChunk(errorHandle, maximumBytes: 4_096),
                       !data.isEmpty else {
                     break
                 }
@@ -149,6 +150,24 @@ actor CodexProcessTransport: CodexRPCTransport, CodexNotificationTransport {
 
     func request(method: String, params: Data) async throws -> Data {
         try await performRequest(method: method, params: params, freezesNotifications: false)
+    }
+
+    private static func readPipeChunk(_ handle: FileHandle, maximumBytes: Int) -> Data? {
+        var buffer = [UInt8](repeating: 0, count: maximumBytes)
+        while true {
+            let byteCount = buffer.withUnsafeMutableBytes { bytes in
+                Darwin.read(handle.fileDescriptor, bytes.baseAddress, bytes.count)
+            }
+            if byteCount > 0 {
+                return Data(buffer.prefix(byteCount))
+            }
+            if byteCount == 0 {
+                return nil
+            }
+            if errno != EINTR {
+                return nil
+            }
+        }
     }
 
     func requestAndFreezeNotifications(method: String, params: Data) async throws -> Data {

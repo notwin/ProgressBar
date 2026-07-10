@@ -347,6 +347,31 @@ final class CodexConnectorTests: XCTestCase {
         await transport.stop()
     }
 
+    func testProcessTransportConsumesShortResponseBeforeProcessExits() async throws {
+        let executable = try Self.makeExecutable(
+            "#!/bin/sh\nIFS= read -r line\nprintf '%s\\n' '{\"id\":1,\"result\":{\"value\":\"short\"}}'\nsleep 2\n"
+        )
+        let transport = CodexProcessTransport(
+            executablePath: executable.path,
+            requestTimeout: 0.2
+        )
+        try await transport.start()
+
+        do {
+            let response = try await transport.request(
+                method: "thread/list",
+                params: Data(#"{}"#.utf8)
+            )
+            let object = try XCTUnwrap(
+                JSONSerialization.jsonObject(with: response) as? [String: String]
+            )
+            XCTAssertEqual(object["value"], "short")
+        } catch {
+            XCTFail("Expected the short response before process exit, got \(error)")
+        }
+        await transport.stop()
+    }
+
     func testBooleanResponseIDDoesNotResumeNumericPendingRequest() async throws {
         try await Self.assertMalformedResponseIDIsIgnored("true")
     }
