@@ -423,6 +423,40 @@ actor AgentStore {
         try updateAdoption(key: key, state: .failed)
     }
 
+    func prepareAdoptionRetry(
+        key: AgentItemKey,
+        sectionID: String
+    ) throws -> AgentAdoptionRecord {
+        try Self.executeSQL(database, "BEGIN IMMEDIATE", context: "begin adoption retry transaction")
+        var committed = false
+        defer {
+            if !committed {
+                try? Self.executeSQL(database, "ROLLBACK", context: "rollback adoption retry transaction")
+            }
+        }
+
+        let statement = try SQLiteStatement(
+            database: database,
+            sql: """
+            UPDATE agent_adoptions SET target_section_id = ?, state = ?
+            WHERE source = ? AND source_session_id = ? AND source_item_id = ?
+            """
+        )
+        try statement.run { statement in
+            try statement.bind(sectionID, at: 1)
+            try statement.bind(AgentAdoptionState.pending.rawValue, at: 2)
+            try statement.bind(key.source.rawValue, at: 3)
+            try statement.bind(key.sessionID, at: 4)
+            try statement.bind(key.itemID, at: 5)
+        }
+        guard let record = try adoption(for: key) else {
+            throw AgentStoreError.invalidData("adoption retry has no reservation")
+        }
+        try Self.executeSQL(database, "COMMIT", context: "commit adoption retry transaction")
+        committed = true
+        return record
+    }
+
     func adoption(for key: AgentItemKey) throws -> AgentAdoptionRecord? {
         let statement = try SQLiteStatement(
             database: database,

@@ -95,7 +95,7 @@ class PersistenceManager {
         do {
             let data = try JSONEncoder().encode(appData)
             try data.write(to: dataURL, options: .atomic)
-            if Self.iCloudDir != nil {
+            if iCloudAvailable {
                 let local = Self.localDir.appendingPathComponent("data.json")
                 try? data.write(to: local, options: .atomic)
             }

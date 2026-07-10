@@ -177,6 +177,44 @@ final class AgentStoreTests: XCTestCase {
         XCTAssertEqual(failed?.state, .failed)
     }
 
+    func testPreparingAdoptionRetryRetargetsEveryStateWithoutChangingTaskID() async throws {
+        let store = try await makeStore()
+        let key = AgentFixtures.key()
+        _ = try await store.reserveAdoption(
+            key: key,
+            taskID: "task-original",
+            sectionID: "section-original",
+            at: AgentFixtures.baseDate
+        )
+
+        let pendingRetry = try await store.prepareAdoptionRetry(
+            key: key,
+            sectionID: "section-pending"
+        )
+        XCTAssertEqual(pendingRetry.progressBarTaskID, "task-original")
+        XCTAssertEqual(pendingRetry.targetSectionID, "section-pending")
+        XCTAssertEqual(pendingRetry.state, .pending)
+
+        try await store.failAdoption(key: key)
+
+        let failedRetry = try await store.prepareAdoptionRetry(
+            key: key,
+            sectionID: "section-retry"
+        )
+        XCTAssertEqual(failedRetry.progressBarTaskID, "task-original")
+        XCTAssertEqual(failedRetry.targetSectionID, "section-retry")
+        XCTAssertEqual(failedRetry.state, .pending)
+
+        try await store.completeAdoption(key: key)
+        let completedRetry = try await store.prepareAdoptionRetry(
+            key: key,
+            sectionID: "section-readopt"
+        )
+        XCTAssertEqual(completedRetry.progressBarTaskID, "task-original")
+        XCTAssertEqual(completedRetry.targetSectionID, "section-readopt")
+        XCTAssertEqual(completedRetry.state, .pending)
+    }
+
     func testPruneHistoryRemovesEmptyHierarchyButRetainsAdoption() async throws {
         let (store, databaseURL) = try await makeStoreWithURL()
         let key = AgentFixtures.key()

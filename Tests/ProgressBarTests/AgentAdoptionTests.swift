@@ -1,9 +1,14 @@
 import XCTest
 @testable import ProgressBar
 
+private enum TestDashboardReloadError: Error {
+    case failed
+}
+
 @MainActor
 final class FakeUserTaskSink: UserTaskAdopting {
     var tasks: [String: TaskItem] = [:]
+    var targetSections: [String: String] = [:]
     var failNextInsert = false
 
     func containsTask(id: String) -> Bool {
@@ -30,12 +35,13 @@ final class FakeUserTaskSink: UserTaskAdopting {
             logs: [LogEntry(id: "log", date: "26.07.10", text: logText)],
             completedAt: nil
         )
+        targetSections[id] = sectionID
         return true
     }
 }
 
 @MainActor
-final class TestPersistenceManager: PersistenceManager {
+final class RecordingPersistenceManager: PersistenceManager {
     var saveSucceeds: Bool
     private(set) var savedData: [AppData] = []
     private let initialData: AppData
@@ -56,6 +62,25 @@ final class TestPersistenceManager: PersistenceManager {
     override func save(appData: AppData) -> Bool {
         savedData.append(appData)
         return saveSucceeds
+    }
+}
+
+@MainActor
+final class PathPersistenceManager: PersistenceManager {
+    private let initialData: AppData
+    private let testDataURL: URL
+
+    init(initialData: AppData, dataURL: URL) {
+        self.initialData = initialData
+        self.testDataURL = dataURL
+        super.init()
+    }
+
+    override var dataURL: URL { testDataURL }
+    override var iCloudAvailable: Bool { false }
+
+    override func load() -> LoadResult {
+        .loaded(initialData)
     }
 }
 
@@ -93,11 +118,11 @@ final class AgentAdoptionTests: XCTestCase {
     private func makeAppState(
         saveSucceeds: Bool,
         sections: [TaskSection]? = nil
-    ) -> (state: AppState, persistence: TestPersistenceManager) {
+    ) -> (state: AppState, persistence: RecordingPersistenceManager) {
         let initialSections = sections ?? [
             TaskSection(id: "section-1", name: "Work", tasks: [], archived: [])
         ]
-        let persistence = TestPersistenceManager(
+        let persistence = RecordingPersistenceManager(
             initialData: AppData(
                 sections: initialSections,
                 themeId: "obsidian",
@@ -109,6 +134,64 @@ final class AgentAdoptionTests: XCTestCase {
             AppState(persistence: persistence, initializeServices: false),
             persistence
         )
+    }
+
+    @MainActor
+    func testActualPersistenceFailureRollsBackAndRetryWritesSameTaskID() async throws {
+        let fileManager = FileManager.default
+        let root = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let missingParent = root.appendingPathComponent("missing-parent", isDirectory: true)
+        let dataURL = missingParent.appendingPathComponent("file.json")
+        let sections = [
+            TaskSection(id: "section-1", name: "Work", tasks: [], archived: [])
+        ]
+        let initialData = AppData(
+            sections: sections,
+            themeId: "obsidian",
+            activeSectionId: "section-1"
+        )
+        let persistence = PathPersistenceManager(initialData: initialData, dataURL: dataURL)
+        let state = AppState(persistence: persistence, initializeServices: false)
+        let store = try await makeStore()
+        let controller = makeController(store: store)
+        let item = makeItem()
+
+        XCTAssertFalse(persistence.save(appData: initialData))
+        XCTAssertNotNil(state.saveError)
+        do {
+            _ = try await controller.adopt(
+                item: item,
+                sessionTitle: "Atomic persistence",
+                editedTitle: "Persist for real",
+                targetSectionID: "section-1",
+                taskSink: state
+            )
+            XCTFail("Expected the missing parent directory to fail the atomic write")
+        } catch {
+            XCTAssertEqual(error as? AgentAdoptionError, .userTaskWriteFailed)
+        }
+        let failed = try await store.adoption(for: item.key)
+        let reservedTaskID = try XCTUnwrap(failed?.progressBarTaskID)
+        XCTAssertEqual(failed?.state, .failed)
+        XCTAssertFalse(state.containsTask(id: reservedTaskID))
+        XCTAssertTrue(state.sections[0].tasks.isEmpty)
+
+        try fileManager.createDirectory(at: missingParent, withIntermediateDirectories: true)
+        let retriedTaskID = try await controller.adopt(
+            item: item,
+            sessionTitle: "Atomic persistence",
+            editedTitle: "Persist for real",
+            targetSectionID: "section-1",
+            taskSink: state
+        )
+
+        XCTAssertEqual(retriedTaskID, reservedTaskID)
+        let writtenData = try Data(contentsOf: dataURL)
+        let decoded = try JSONDecoder().decode(AppData.self, from: writtenData)
+        XCTAssertEqual(decoded.sections[0].tasks.map(\.id), [reservedTaskID])
+        XCTAssertEqual(decoded.sections[0].tasks[0].title, "Persist for real")
+        let completed = try await store.adoption(for: item.key)
+        XCTAssertEqual(completed?.state, .completed)
     }
 
     @MainActor
@@ -227,6 +310,115 @@ final class AgentAdoptionTests: XCTestCase {
         XCTAssertEqual(sink.tasks[retriedTaskID]?.logs.map(\.text), ["从 Claude Code 会话「Recovery」接管"])
         let completedAdoption = try await store.adoption(for: item.key)
         XCTAssertEqual(completedAdoption?.state, .completed)
+    }
+
+    @MainActor
+    func testRetryRetargetsFailedReservationWhenOriginalSectionIsUnavailable() async throws {
+        let store = try await makeStore()
+        let controller = makeController(store: store)
+        let sections = [
+            TaskSection(id: "section-b", name: "Available", tasks: [], archived: [])
+        ]
+        let (state, _) = makeAppState(saveSucceeds: true, sections: sections)
+        let item = makeItem()
+
+        do {
+            _ = try await controller.adopt(
+                item: item,
+                sessionTitle: "Retarget",
+                editedTitle: "Move me",
+                targetSectionID: "section-a",
+                taskSink: state
+            )
+            XCTFail("Expected the unavailable target section to fail")
+        } catch {
+            XCTAssertEqual(error as? AgentAdoptionError, .userTaskWriteFailed)
+        }
+        let failed = try await store.adoption(for: item.key)
+        let reservedTaskID = try XCTUnwrap(failed?.progressBarTaskID)
+        XCTAssertEqual(failed?.targetSectionID, "section-a")
+        XCTAssertEqual(failed?.state, .failed)
+
+        let retriedTaskID = try await controller.adopt(
+            item: item,
+            sessionTitle: "Retarget",
+            editedTitle: "Move me",
+            targetSectionID: "section-b",
+            taskSink: state
+        )
+
+        XCTAssertEqual(retriedTaskID, reservedTaskID)
+        XCTAssertEqual(state.sections[0].tasks.map(\.id), [reservedTaskID])
+        let completed = try await store.adoption(for: item.key)
+        XCTAssertEqual(completed?.progressBarTaskID, reservedTaskID)
+        XCTAssertEqual(completed?.targetSectionID, "section-b")
+        XCTAssertEqual(completed?.state, .completed)
+    }
+
+    @MainActor
+    func testConcurrentAdoptsKeepMappingTargetAlignedWithInsertedSection() async throws {
+        let store = try await makeStore()
+        let item = makeItem()
+        _ = try await store.reserveAdoption(
+            key: item.key,
+            taskID: "fixed-task-id",
+            sectionID: "stale-section",
+            at: Date(timeIntervalSince1970: 1_700_000_000)
+        )
+        let controller = makeController(store: store)
+        let sink = FakeUserTaskSink()
+
+        async let first = controller.adopt(
+            item: item,
+            sessionTitle: "Concurrent",
+            editedTitle: "First",
+            targetSectionID: "section-a",
+            taskSink: sink
+        )
+        async let second = controller.adopt(
+            item: item,
+            sessionTitle: "Concurrent",
+            editedTitle: "Second",
+            targetSectionID: "section-b",
+            taskSink: sink
+        )
+        let taskIDs = try await (first, second)
+
+        XCTAssertEqual(taskIDs.0, "fixed-task-id")
+        XCTAssertEqual(taskIDs.1, "fixed-task-id")
+        XCTAssertEqual(sink.tasks.count, 1)
+        let insertedSection = try XCTUnwrap(sink.targetSections["fixed-task-id"])
+        XCTAssertTrue(["section-a", "section-b"].contains(insertedSection))
+        let adoption = try await store.adoption(for: item.key)
+        XCTAssertEqual(adoption?.targetSectionID, insertedSection)
+        XCTAssertEqual(adoption?.state, .completed)
+    }
+
+    @MainActor
+    func testDashboardReloadFailureDoesNotFailDurableAdoption() async throws {
+        let store = try await makeStore()
+        let controller = AgentIntegrationController(
+            store: store,
+            connectors: [],
+            applicationIsActive: false,
+            adoptionDashboardLoader: { _ in throw TestDashboardReloadError.failed }
+        )
+        let sink = FakeUserTaskSink()
+        let item = makeItem()
+        let originalDashboard = controller.dashboard
+
+        let taskID = try await controller.adopt(
+            item: item,
+            sessionTitle: "Best effort reload",
+            editedTitle: "Durable task",
+            targetSectionID: "section-1",
+            taskSink: sink
+        )
+
+        XCTAssertTrue(sink.containsTask(id: taskID))
+        let adoption = try await store.adoption(for: item.key)
+        XCTAssertEqual(adoption?.state, .completed)
+        XCTAssertEqual(controller.dashboard, originalDashboard)
     }
 
     @MainActor

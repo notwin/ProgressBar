@@ -141,6 +141,14 @@ private actor AgentRefreshWorker {
         try await store.completeAdoption(key: key)
     }
 
+    func prepareAdoptionRetry(
+        key: AgentItemKey,
+        sectionID: String
+    ) async throws -> AgentAdoptionRecord {
+        let store = try await loadStore()
+        return try await store.prepareAdoptionRetry(key: key, sectionID: sectionID)
+    }
+
     func failAdoption(key: AgentItemKey) async throws {
         let store = try await loadStore()
         try await store.failAdoption(key: key)
@@ -218,6 +226,7 @@ final class AgentIntegrationController: ObservableObject {
     private let pollScheduler: any AgentPollScheduling
     private let directoryMonitor: (any AgentDirectoryMonitoring)?
     private let applicationIsActiveProvider: @MainActor () -> Bool
+    private let adoptionDashboardLoader: (@MainActor (Bool) async throws -> AgentDashboard)?
     private var notificationObservers: [NSObjectProtocol] = []
     private var pollCancellation: (any AgentPollCancellation)?
     private var refreshTask: Task<Void, Never>?
@@ -229,6 +238,7 @@ final class AgentIntegrationController: ObservableObject {
     private var isVisible = false
     private var applicationIsActive: Bool
     private var refreshPending = false
+    private var adoptionOperations: [AgentItemKey: (id: UUID, task: Task<String, Error>)] = [:]
 
     init(
         store: AgentStore,
@@ -237,6 +247,7 @@ final class AgentIntegrationController: ObservableObject {
         pollScheduler: (any AgentPollScheduling)? = nil,
         directoryMonitor: (any AgentDirectoryMonitoring)? = nil,
         applicationIsActive: Bool? = nil,
+        adoptionDashboardLoader: (@MainActor (Bool) async throws -> AgentDashboard)? = nil,
         applicationIsActiveProvider: (@MainActor () -> Bool)? = nil,
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
@@ -244,6 +255,7 @@ final class AgentIntegrationController: ObservableObject {
         self.notificationCenter = notificationCenter
         self.pollScheduler = pollScheduler ?? FoundationAgentPollScheduler()
         self.directoryMonitor = directoryMonitor
+        self.adoptionDashboardLoader = adoptionDashboardLoader
         let initialApplicationIsActive = applicationIsActive
         let provider = applicationIsActiveProvider ?? {
             initialApplicationIsActive ?? NSApplication.shared.isActive
@@ -272,6 +284,7 @@ final class AgentIntegrationController: ObservableObject {
         self.notificationCenter = notificationCenter
         self.pollScheduler = pollScheduler ?? FoundationAgentPollScheduler()
         self.directoryMonitor = directoryMonitor
+        self.adoptionDashboardLoader = nil
         let initialApplicationIsActive = applicationIsActive
         let provider = applicationIsActiveProvider ?? {
             initialApplicationIsActive ?? NSApplication.shared.isActive
@@ -367,6 +380,37 @@ final class AgentIntegrationController: ObservableObject {
         targetSectionID: String,
         taskSink: UserTaskAdopting
     ) async throws -> String {
+        if let operation = adoptionOperations[item.key] {
+            return try await operation.task.value
+        }
+
+        let operationID = UUID()
+        let operation = Task { @MainActor [weak self] () throws -> String in
+            guard let self else { throw CancellationError() }
+            return try await self.performAdoption(
+                item: item,
+                sessionTitle: sessionTitle,
+                editedTitle: editedTitle,
+                targetSectionID: targetSectionID,
+                taskSink: taskSink
+            )
+        }
+        adoptionOperations[item.key] = (operationID, operation)
+        defer {
+            if adoptionOperations[item.key]?.id == operationID {
+                adoptionOperations[item.key] = nil
+            }
+        }
+        return try await operation.value
+    }
+
+    private func performAdoption(
+        item: AgentItemSnapshot,
+        sessionTitle: String,
+        editedTitle: String,
+        targetSectionID: String,
+        taskSink: UserTaskAdopting
+    ) async throws -> String {
         let adoption: AgentAdoptionRecord
         if let existing = try await worker.adoption(for: item.key) {
             adoption = existing
@@ -381,20 +425,24 @@ final class AgentIntegrationController: ObservableObject {
 
         if taskSink.containsTask(id: adoption.progressBarTaskID) {
             try await worker.completeAdoption(key: item.key)
-            dashboard = try await worker.dashboard(includeHistory: showingHistory)
+            await reloadDashboardAfterAdoption()
             return adoption.progressBarTaskID
         }
 
+        let preparedAdoption = try await worker.prepareAdoptionRetry(
+            key: item.key,
+            sectionID: targetSectionID
+        )
         let sourceName: String
         switch item.key.source {
         case .claude: sourceName = "Claude Code"
         case .codex: sourceName = "Codex"
         }
         let inserted = taskSink.insertAdoptedTask(
-            id: adoption.progressBarTaskID,
+            id: preparedAdoption.progressBarTaskID,
             title: editedTitle,
             status: item.status.taskStatus,
-            sectionID: adoption.targetSectionID,
+            sectionID: preparedAdoption.targetSectionID,
             logText: "从 \(sourceName) 会话「\(sessionTitle)」接管"
         )
         guard inserted else {
@@ -403,8 +451,22 @@ final class AgentIntegrationController: ObservableObject {
         }
 
         try await worker.completeAdoption(key: item.key)
-        dashboard = try await worker.dashboard(includeHistory: showingHistory)
-        return adoption.progressBarTaskID
+        await reloadDashboardAfterAdoption()
+        return preparedAdoption.progressBarTaskID
+    }
+
+    private func reloadDashboardAfterAdoption() async {
+        do {
+            let refreshedDashboard: AgentDashboard
+            if let adoptionDashboardLoader {
+                refreshedDashboard = try await adoptionDashboardLoader(showingHistory)
+            } else {
+                refreshedDashboard = try await worker.dashboard(includeHistory: showingHistory)
+            }
+            dashboard = refreshedDashboard
+        } catch {
+            // Task and mapping are already durable. Keep the prior dashboard and return success.
+        }
     }
 
     private func requestRefresh(token: AgentLifecycleToken) -> Task<Void, Never> {
