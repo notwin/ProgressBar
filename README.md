@@ -83,6 +83,7 @@
 - 全套键盘快捷键，⌘1~9 快速切换分区
 - 应用内自动更新，启动时静默检查新版本
 - MCP 协议集成，AI 助手可直接管理任务
+- 本地 Agent 任务视图：Claude Code + Codex，只读镜像，可接管为普通任务
 
 </td>
 </tr>
@@ -133,6 +134,8 @@ cd mcp-server && npm install && npx tsc
 
 支持的操作：查看分区、列出任务、新建任务、更新状态、添加跟进记录、归档、删除等。
 
+Agent 任务视图只读镜像本机 Claude Code 与 Codex 的结构化任务；需要继续跟进时，可手动接管为普通任务。现有用户任务仍保存为 JSON 并通过 iCloud Drive 同步；Agent 索引单独保存在本机 SQLite 中，可随时重建，不进入 iCloud。
+
 <br>
 
 ## 技术栈
@@ -143,7 +146,7 @@ cd mcp-server && npm install && npx tsc
 | **UI 框架** | SwiftUI + AppKit |
 | **日历** | EventKit |
 | **构建** | `swiftc` 命令行直接编译，无需 Xcode 工程 |
-| **数据** | JSON + iCloud Drive 同步 |
+| **数据** | 用户数据：JSON + iCloud Drive；Agent 索引：本地 SQLite（可重建，不进入 iCloud） |
 | **国际化** | 12 种语言（中/英/日/韩/法/意/西/葡/印地/印尼） |
 | **CI/CD** | GitHub Actions 自动编译发布 |
 | **最低系统** | macOS 14.0 Sonoma |
@@ -156,6 +159,7 @@ cd mcp-server && npm install && npx tsc
 ProgressBar/
 ├── Sources/
 │   ├── App/                  # 应用入口
+│   ├── Agent/                # 本地 Agent 连接器 · SQLite 索引
 │   ├── Models/               # 数据模型 · 主题配色
 │   ├── Views/                # SwiftUI 视图
 │   ├── Services/             # 状态管理 · 持久化 · 日历 · 更新

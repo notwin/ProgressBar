@@ -83,6 +83,7 @@ Track project progress with logs · Pure SwiftUI · No Xcode required · One-com
 - Full keyboard shortcuts, `⌘1`~`⌘9` section switching
 - In-app auto-update with silent launch check
 - MCP protocol integration for AI assistants
+- Local Agent task view for Claude Code + Codex: read-only mirror with manual adoption into regular tasks
 
 </td>
 </tr>
@@ -133,6 +134,8 @@ cd mcp-server && npm install && npx tsc
 
 Supported operations: list sections, list tasks, create tasks, update status, add logs, archive, delete, and more.
 
+The Agent task view is a read-only mirror of structured local Claude Code and Codex tasks; items can be manually adopted into regular tasks when continued tracking is needed. Existing user tasks remain JSON data synced through iCloud Drive. The separate Agent index is rebuildable local-only SQLite data and is never stored in iCloud.
+
 <br>
 
 ## Tech Stack
@@ -143,7 +146,7 @@ Supported operations: list sections, list tasks, create tasks, update status, ad
 | **UI Framework** | SwiftUI + AppKit |
 | **Calendar** | EventKit |
 | **Build** | `swiftc` CLI compilation, no Xcode project needed |
-| **Data** | JSON + iCloud Drive sync |
+| **Data** | User data: JSON + iCloud Drive; Agent index: local SQLite (rebuildable, never in iCloud) |
 | **i18n** | 12 languages (EN/ZH/JA/KO/FR/IT/ES/PT/HI/ID) |
 | **CI/CD** | GitHub Actions auto build & release |
 | **Minimum OS** | macOS 14.0 Sonoma |
@@ -156,6 +159,7 @@ Supported operations: list sections, list tasks, create tasks, update status, ad
 ProgressBar/
 ├── Sources/
 │   ├── App/                  # App entry point
+│   ├── Agent/                # Local Agent connectors · SQLite index
 │   ├── Models/               # Data models · Theme system
 │   ├── Views/                # SwiftUI views
 │   ├── Services/             # State · Persistence · Calendar · Updater

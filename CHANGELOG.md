@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- 本地 Agent 任务视图：只读镜像 Claude Code 与 Codex 的结构化任务，并支持手动接管为普通任务
+- Agent 索引使用仅限本机、可重建的 SQLite 数据库；现有用户数据继续使用 JSON + iCloud Drive，不同步 Agent 索引
+
 ## [4.31] - 2026-04-14
 
 ### Added
