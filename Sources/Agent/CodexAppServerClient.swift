@@ -8,6 +8,7 @@ protocol CodexRPCTransport: Sendable {
 
 protocol CodexNotificationTransport: Sendable {
     func setNotificationHandler(_ handler: (@Sendable (Data) async -> Void)?) async
+    func requestAndFreezeNotifications(method: String, params: Data) async throws -> Data
 }
 
 enum CodexTransportError: Error, Equatable {
@@ -19,6 +20,7 @@ enum CodexTransportError: Error, Equatable {
     case serverError(code: Int?)
     case launchFailed
     case writeFailed
+    case frameTooLarge
 }
 
 struct CodexExecutableResolver: Sendable {
@@ -56,14 +58,19 @@ actor CodexProcessTransport: CodexRPCTransport, CodexNotificationTransport {
     private struct PendingRequest {
         let continuation: CheckedContinuation<Data, Error>
         let timeoutTask: Task<Void, Never>
+        let freezesNotifications: Bool
     }
 
     private let executablePath: String?
     private let requestTimeout: TimeInterval
+    private let maximumFrameBytes: Int
     private var process: Process?
     private var standardInput: FileHandle?
+    private var standardOutput: FileHandle?
+    private var standardError: FileHandle?
     private var standardOutputTask: Task<Void, Never>?
     private var standardErrorTask: Task<Void, Never>?
+    private var connectionGeneration: UInt64 = 0
     private var nextRequestID = 1
     private var pendingRequests: [Int: PendingRequest] = [:]
     private var stdoutBuffer = Data()
@@ -72,10 +79,12 @@ actor CodexProcessTransport: CodexRPCTransport, CodexNotificationTransport {
 
     init(
         executablePath: String? = CodexExecutableResolver().resolve(),
-        requestTimeout: TimeInterval = 5
+        requestTimeout: TimeInterval = 5,
+        maximumFrameBytes: Int = 1_048_576
     ) {
         self.executablePath = executablePath
         self.requestTimeout = requestTimeout
+        self.maximumFrameBytes = maximumFrameBytes
     }
 
     func start() async throws {
@@ -86,6 +95,8 @@ actor CodexProcessTransport: CodexRPCTransport, CodexNotificationTransport {
             throw CodexTransportError.executableNotFound
         }
 
+        connectionGeneration &+= 1
+        let generation = connectionGeneration
         let process = Process()
         let inputPipe = Pipe()
         let outputPipe = Pipe()
@@ -96,7 +107,7 @@ actor CodexProcessTransport: CodexRPCTransport, CodexNotificationTransport {
         process.standardOutput = outputPipe
         process.standardError = errorPipe
         process.terminationHandler = { [weak self] terminatedProcess in
-            Task { await self?.processDidTerminate(terminatedProcess) }
+            Task { await self?.processDidTerminate(terminatedProcess, generation: generation) }
         }
 
         do {
@@ -112,6 +123,8 @@ actor CodexProcessTransport: CodexRPCTransport, CodexNotificationTransport {
         standardInput = inputPipe.fileHandleForWriting
         let outputHandle = outputPipe.fileHandleForReading
         let errorHandle = errorPipe.fileHandleForReading
+        standardOutput = outputHandle
+        standardError = errorHandle
 
         standardOutputTask = Task.detached(priority: .utility) { [weak self] in
             while !Task.isCancelled {
@@ -119,7 +132,7 @@ actor CodexProcessTransport: CodexRPCTransport, CodexNotificationTransport {
                       !data.isEmpty else {
                     break
                 }
-                await self?.consumeStandardOutput(data)
+                await self?.consumeStandardOutput(data, generation: generation)
             }
         }
         standardErrorTask = Task.detached(priority: .utility) { [weak self] in
@@ -128,15 +141,29 @@ actor CodexProcessTransport: CodexRPCTransport, CodexNotificationTransport {
                       !data.isEmpty else {
                     break
                 }
-                await self?.consumeStandardError(data)
+                await self?.consumeStandardError(data, generation: generation)
             }
         }
     }
 
     func request(method: String, params: Data) async throws -> Data {
+        try await performRequest(method: method, params: params, freezesNotifications: false)
+    }
+
+    func requestAndFreezeNotifications(method: String, params: Data) async throws -> Data {
+        try await performRequest(method: method, params: params, freezesNotifications: true)
+    }
+
+    private func performRequest(
+        method: String,
+        params: Data,
+        freezesNotifications: Bool
+    ) async throws -> Data {
+        try Task.checkCancellation()
         guard process != nil, let standardInput else {
             throw CodexTransportError.notStarted
         }
+        let generation = connectionGeneration
 
         let paramsObject = try JSONSerialization.jsonObject(with: params, options: [.fragmentsAllowed])
         if method == "initialized" {
@@ -155,24 +182,30 @@ actor CodexProcessTransport: CodexRPCTransport, CodexNotificationTransport {
             "params": paramsObject
         ]
 
-        return try await withCheckedThrowingContinuation { continuation in
-            let timeoutNanoseconds = UInt64(max(0, requestTimeout) * 1_000_000_000)
-            let timeoutTask = Task { [weak self] in
-                try? await Task.sleep(nanoseconds: timeoutNanoseconds)
-                guard !Task.isCancelled else { return }
-                await self?.expireRequest(id: requestID)
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                let timeoutNanoseconds = UInt64(max(0, requestTimeout) * 1_000_000_000)
+                let timeoutTask = Task { [weak self] in
+                    try? await Task.sleep(nanoseconds: timeoutNanoseconds)
+                    guard !Task.isCancelled else { return }
+                    await self?.expireRequest(id: requestID, generation: generation)
+                }
+                pendingRequests[requestID] = PendingRequest(
+                    continuation: continuation,
+                    timeoutTask: timeoutTask,
+                    freezesNotifications: freezesNotifications
+                )
+                do {
+                    try writeLine(object: object, to: standardInput)
+                } catch {
+                    resumeRequest(
+                        id: requestID,
+                        result: .failure(CodexTransportError.writeFailed)
+                    )
+                }
             }
-            pendingRequests[requestID] = PendingRequest(
-                continuation: continuation,
-                timeoutTask: timeoutTask
-            )
-            do {
-                try writeLine(object: object, to: standardInput)
-            } catch {
-                let pending = pendingRequests.removeValue(forKey: requestID)
-                pending?.timeoutTask.cancel()
-                pending?.continuation.resume(throwing: CodexTransportError.writeFailed)
-            }
+        } onCancel: {
+            Task { await self.cancelRequest(id: requestID, generation: generation) }
         }
     }
 
@@ -181,29 +214,94 @@ actor CodexProcessTransport: CodexRPCTransport, CodexNotificationTransport {
     }
 
     func stop() async {
-        let pending = pendingRequests.values
-        pendingRequests.removeAll()
-        for request in pending {
-            request.timeoutTask.cancel()
-            request.continuation.resume(throwing: CodexTransportError.stopped)
-        }
+        connectionGeneration &+= 1
+        let processToStop = process
+        let inputToClose = standardInput
+        let outputToClose = standardOutput
+        let errorToClose = standardError
+        let outputTask = standardOutputTask
+        let errorTask = standardErrorTask
 
-        try? standardInput?.close()
-        if let process {
-            process.terminationHandler = nil
-            if process.isRunning {
-                process.terminate()
-            }
-        }
-        standardOutputTask?.cancel()
-        standardErrorTask?.cancel()
+        process = nil
+        standardInput = nil
+        standardOutput = nil
+        standardError = nil
         standardOutputTask = nil
         standardErrorTask = nil
-        standardInput = nil
-        process = nil
         notificationHandler = nil
         stdoutBuffer.removeAll(keepingCapacity: false)
         diagnosticBuffer.removeAll(keepingCapacity: false)
+        resumeAllPending(with: CodexTransportError.stopped)
+
+        processToStop?.terminationHandler = nil
+        try? inputToClose?.close()
+        try? outputToClose?.close()
+        try? errorToClose?.close()
+        if let processToStop, processToStop.isRunning {
+            processToStop.terminate()
+        }
+        outputTask?.cancel()
+        errorTask?.cancel()
+        await outputTask?.value
+        await errorTask?.value
+    }
+
+    private func resumeRequest(id: Int, result: Result<Data, Error>) {
+        guard let pending = pendingRequests.removeValue(forKey: id) else { return }
+        pending.timeoutTask.cancel()
+        pending.continuation.resume(with: result)
+    }
+
+    private func resumeAllPending(with error: Error) {
+        let requestIDs = Array(pendingRequests.keys)
+        for requestID in requestIDs {
+            resumeRequest(id: requestID, result: .failure(error))
+        }
+    }
+
+    private func cancelRequest(id: Int, generation: UInt64) {
+        guard connectionGeneration == generation else { return }
+        resumeRequest(id: id, result: .failure(CancellationError()))
+    }
+
+    private func expireRequest(id: Int, generation: UInt64) {
+        guard connectionGeneration == generation else { return }
+        resumeRequest(id: id, result: .failure(CodexTransportError.timeout))
+    }
+
+    private func failConnection(
+        _ error: CodexTransportError,
+        generation: UInt64
+    ) {
+        guard connectionGeneration == generation else { return }
+        connectionGeneration &+= 1
+        let processToStop = process
+        let inputToClose = standardInput
+        let outputToClose = standardOutput
+        let errorToClose = standardError
+        let outputTask = standardOutputTask
+        let errorTask = standardErrorTask
+
+        process = nil
+        standardInput = nil
+        standardOutput = nil
+        standardError = nil
+        standardOutputTask = nil
+        standardErrorTask = nil
+        notificationHandler = nil
+        stdoutBuffer.removeAll(keepingCapacity: false)
+        diagnosticBuffer.removeAll(keepingCapacity: false)
+        resumeAllPending(with: error)
+
+        processToStop?.terminationHandler = nil
+        try? inputToClose?.close()
+        try? outputToClose?.close()
+        try? errorToClose?.close()
+        if let processToStop, processToStop.isRunning {
+            processToStop.terminate()
+        }
+        outputTask?.cancel()
+        errorTask?.cancel()
     }
 
     private func writeLine(object: Any, to handle: FileHandle) throws {
@@ -212,38 +310,37 @@ actor CodexProcessTransport: CodexRPCTransport, CodexNotificationTransport {
         try handle.write(contentsOf: data)
     }
 
-    private func expireRequest(id: Int) {
-        guard let pending = pendingRequests.removeValue(forKey: id) else { return }
-        pending.timeoutTask.cancel()
-        pending.continuation.resume(throwing: CodexTransportError.timeout)
+
+    private func processDidTerminate(
+        _ terminatedProcess: Process,
+        generation: UInt64
+    ) {
+        guard connectionGeneration == generation,
+              process === terminatedProcess else { return }
+        failConnection(.stopped, generation: generation)
     }
 
-    private func processDidTerminate(_ terminatedProcess: Process) {
-        guard process === terminatedProcess else { return }
-        let pending = pendingRequests.values
-        pendingRequests.removeAll()
-        for request in pending {
-            request.timeoutTask.cancel()
-            request.continuation.resume(throwing: CodexTransportError.stopped)
-        }
-        standardOutputTask?.cancel()
-        standardErrorTask?.cancel()
-        standardOutputTask = nil
-        standardErrorTask = nil
-        standardInput = nil
-        process = nil
-    }
-
-    private func consumeStandardOutput(_ data: Data) async {
+    private func consumeStandardOutput(_ data: Data, generation: UInt64) async {
+        guard connectionGeneration == generation else { return }
         stdoutBuffer.append(data)
         while let newline = stdoutBuffer.firstIndex(of: 0x0A) {
+            guard stdoutBuffer.distance(from: stdoutBuffer.startIndex, to: newline)
+                    <= maximumFrameBytes else {
+                failConnection(.frameTooLarge, generation: generation)
+                return
+            }
             let line = Data(stdoutBuffer[..<newline])
             stdoutBuffer.removeSubrange(...newline)
-            await consumeLine(line)
+            await consumeLine(line, generation: generation)
+            guard connectionGeneration == generation else { return }
+        }
+        if stdoutBuffer.count > maximumFrameBytes {
+            failConnection(.frameTooLarge, generation: generation)
         }
     }
 
-    private func consumeLine(_ line: Data) async {
+    private func consumeLine(_ line: Data, generation: UInt64) async {
+        guard connectionGeneration == generation else { return }
         guard !line.isEmpty,
               let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any]
         else {
@@ -252,17 +349,20 @@ actor CodexProcessTransport: CodexRPCTransport, CodexNotificationTransport {
 
         if let number = object["id"] as? NSNumber {
             let requestID = number.intValue
-            guard let pending = pendingRequests.removeValue(forKey: requestID) else { return }
-            pending.timeoutTask.cancel()
+            guard let pending = pendingRequests[requestID] else { return }
+            if pending.freezesNotifications {
+                notificationHandler = nil
+            }
             if let result = object["result"],
                let data = try? JSONSerialization.data(withJSONObject: result, options: [.fragmentsAllowed]) {
-                pending.continuation.resume(returning: data)
+                resumeRequest(id: requestID, result: .success(data))
             } else if let error = object["error"] as? [String: Any] {
-                pending.continuation.resume(
-                    throwing: CodexTransportError.serverError(code: error["code"] as? Int)
+                resumeRequest(
+                    id: requestID,
+                    result: .failure(CodexTransportError.serverError(code: error["code"] as? Int))
                 )
             } else {
-                pending.continuation.resume(throwing: CodexTransportError.invalidResponse)
+                resumeRequest(id: requestID, result: .failure(CodexTransportError.invalidResponse))
             }
             return
         }
@@ -271,7 +371,8 @@ actor CodexProcessTransport: CodexRPCTransport, CodexNotificationTransport {
         await notificationHandler(line)
     }
 
-    private func consumeStandardError(_ data: Data) {
+    private func consumeStandardError(_ data: Data, generation: UInt64) {
+        guard connectionGeneration == generation else { return }
         diagnosticBuffer.append(data)
         let maximumBytes = 32 * 1_024
         if diagnosticBuffer.count > maximumBytes {
@@ -310,9 +411,15 @@ struct TurnPlanStep: Decodable, Equatable, Sendable {
     let status: String
 }
 
+struct CapturedTurnPlan: Equatable, Sendable {
+    let turnID: String
+    let steps: [TurnPlanStep]
+}
+
 private struct CodexTurnPlanUpdatedNotification: Decodable {
     struct Params: Decodable {
         let threadId: String
+        let turnId: String
         let plan: [TurnPlanStep]
     }
 
@@ -323,7 +430,8 @@ private struct CodexTurnPlanUpdatedNotification: Decodable {
 actor CodexAppServerClient {
     private let transport: any CodexRPCTransport
     private var isStarted = false
-    private var planStepsByThreadID: [String: [TurnPlanStep]] = [:]
+    private var plansByThreadID: [String: CapturedTurnPlan] = [:]
+    private var isPlanCaptureFrozen = false
 
     init(transport: any CodexRPCTransport) {
         self.transport = transport
@@ -331,7 +439,8 @@ actor CodexAppServerClient {
 
     func start() async throws {
         guard !isStarted else { return }
-        planStepsByThreadID.removeAll()
+        plansByThreadID.removeAll()
+        isPlanCaptureFrozen = false
         if let notificationTransport = transport as? any CodexNotificationTransport {
             await notificationTransport.setNotificationHandler { [weak self] data in
                 await self?.receiveNotification(data)
@@ -381,7 +490,28 @@ actor CodexAppServerClient {
     }
 
     func capturedPlanSteps(threadID: String) -> [TurnPlanStep] {
-        planStepsByThreadID[threadID, default: []]
+        plansByThreadID[threadID]?.steps ?? []
+    }
+
+    func freezeCapturedPlans() async throws -> [String: CapturedTurnPlan] {
+        let params = try JSONSerialization.data(withJSONObject: [
+            "archived": false,
+            "limit": 1,
+            "sortKey": "updated_at",
+            "sortDirection": "desc"
+        ])
+        let response: Data
+        if let notificationTransport = transport as? any CodexNotificationTransport {
+            response = try await notificationTransport.requestAndFreezeNotifications(
+                method: "thread/list",
+                params: params
+            )
+        } else {
+            response = try await transport.request(method: "thread/list", params: params)
+        }
+        _ = try JSONDecoder().decode(CodexThreadListResponse.self, from: response)
+        isPlanCaptureFrozen = true
+        return plansByThreadID
     }
 
     func stop() async {
@@ -394,12 +524,16 @@ actor CodexAppServerClient {
     }
 
     private func receiveNotification(_ data: Data) {
+        guard !isPlanCaptureFrozen else { return }
         guard let notification = try? JSONDecoder().decode(
             CodexTurnPlanUpdatedNotification.self,
             from: data
         ), notification.method == "turn/plan/updated" else {
             return
         }
-        planStepsByThreadID[notification.params.threadId] = notification.params.plan
+        plansByThreadID[notification.params.threadId] = CapturedTurnPlan(
+            turnID: notification.params.turnId,
+            steps: notification.params.plan
+        )
     }
 }

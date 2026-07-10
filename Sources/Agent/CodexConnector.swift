@@ -1,5 +1,9 @@
 import Foundation
 
+enum CodexConnectorError: Error, Equatable {
+    case paginationDidNotProgress
+}
+
 struct CodexConnector: AgentConnector {
     let source: AgentSource = .codex
 
@@ -34,11 +38,25 @@ struct CodexConnector: AgentConnector {
     private func readSnapshot(client: CodexAppServerClient) async throws -> AgentSnapshot {
         var threads: [CodexThread] = []
         var pageCursor: String?
+        var seenCursors: Set<String> = []
+        var seenThreadIDs: Set<String> = []
+        var pageCount = 0
 
         repeat {
+            guard pageCount < 500 else {
+                throw CodexConnectorError.paginationDidNotProgress
+            }
+            if let pageCursor, !seenCursors.insert(pageCursor).inserted {
+                throw CodexConnectorError.paginationDidNotProgress
+            }
             let page = try await client.listThreads(cursor: pageCursor)
+            pageCount += 1
             let remaining = 500 - threads.count
-            threads.append(contentsOf: page.data.prefix(remaining))
+            let newThreads = page.data.filter { seenThreadIDs.insert($0.id).inserted }
+            threads.append(contentsOf: newThreads.prefix(remaining))
+            if page.nextCursor != nil, newThreads.isEmpty {
+                throw CodexConnectorError.paginationDidNotProgress
+            }
             pageCursor = threads.count < 500 ? page.nextCursor : nil
         } while pageCursor != nil
 
@@ -48,11 +66,13 @@ struct CodexConnector: AgentConnector {
                 goalsByThreadID[thread.id] = goal
             }
         }
+        let capturedPlans = try await client.freezeCapturedPlans()
 
         var sessionsByProject: [CodexProjectIdentity: [AgentSessionSnapshot]] = [:]
         for thread in threads {
             var items: [AgentItemSnapshot] = []
             if let goal = goalsByThreadID[thread.id],
+               goal.threadId == thread.id,
                let status = AgentItemStatus(codexGoalStatus: goal.status),
                status != .done {
                 items.append(AgentItemSnapshot(
@@ -68,14 +88,21 @@ struct CodexConnector: AgentConnector {
                 ))
             }
 
-            let planSteps = await client.capturedPlanSteps(threadID: thread.id)
-            items.append(contentsOf: planSteps.enumerated().compactMap { index, step in
+            var duplicateCounts: [String: Int] = [:]
+            let capturedPlan = capturedPlans[thread.id]
+            items.append(contentsOf: (capturedPlan?.steps ?? []).enumerated().compactMap { index, step in
                 guard let status = Self.planStatus(step.status) else { return nil }
+                let duplicateIndex = duplicateCounts[step.step, default: 0]
+                duplicateCounts[step.step] = duplicateIndex + 1
                 return AgentItemSnapshot(
                     key: AgentItemKey(
                         source: .codex,
                         sessionID: thread.id,
-                        itemID: "plan-step-\(index)"
+                        itemID: Self.planItemID(
+                            turnID: capturedPlan?.turnID ?? "",
+                            step: step.step,
+                            duplicateIndex: duplicateIndex
+                        )
                     ),
                     kind: .planStep,
                     title: step.step,
@@ -141,6 +168,23 @@ struct CodexConnector: AgentConnector {
         case "completed": return .done
         default: return nil
         }
+    }
+
+    private static func planItemID(
+        turnID: String,
+        step: String,
+        duplicateIndex: Int
+    ) -> String {
+        "plan-step-\(stableHash(turnID))-\(stableHash(step))-\(duplicateIndex)"
+    }
+
+    private static func stableHash(_ value: String) -> String {
+        var hash: UInt64 = 14_695_981_039_346_656_037
+        for byte in value.utf8 {
+            hash ^= UInt64(byte)
+            hash &*= 1_099_511_628_211
+        }
+        return String(format: "%016llx", hash)
     }
 }
 
