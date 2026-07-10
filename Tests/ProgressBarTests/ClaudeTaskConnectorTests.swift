@@ -93,4 +93,21 @@ final class ClaudeTaskConnectorTests: XCTestCase {
 
         XCTAssertTrue(snapshot.projects.flatMap(\.sessions).flatMap(\.items).isEmpty)
     }
+
+    func testTaskGrowthAfterFingerprintIsRejectedByActualReadSize() async throws {
+        let root = try XCTUnwrap(Bundle.module.resourceURL?.appendingPathComponent("Claude"))
+        let connector = ClaudeTaskConnector(
+            tasksRoot: root.appendingPathComponent("tasks"),
+            projectsRoot: root.appendingPathComponent("projects"),
+            taskDataReader: { url, _ in
+                var data = try Data(contentsOf: url)
+                data.append(Data(repeating: 0x20, count: 1_048_577))
+                return data
+            }
+        )
+
+        let snapshot = try await connector.scan(cursor: nil)
+
+        XCTAssertTrue(snapshot.projects.flatMap(\.sessions).flatMap(\.items).isEmpty)
+    }
 }

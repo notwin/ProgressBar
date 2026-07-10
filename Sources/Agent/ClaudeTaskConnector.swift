@@ -6,6 +6,7 @@ struct ClaudeTaskConnector: AgentConnector {
     private let tasksRoot: URL
     private let projectsRoot: URL
     private let now: @Sendable () -> Date
+    private let taskDataReader: @Sendable (URL, Int) throws -> Data
     private var fileManager: FileManager { .default }
 
     init(
@@ -16,6 +17,21 @@ struct ClaudeTaskConnector: AgentConnector {
         self.tasksRoot = tasksRoot
         self.projectsRoot = projectsRoot
         self.now = now
+        self.taskDataReader = { url, count in
+            try Self.readTaskData(at: url, upToCount: count)
+        }
+    }
+
+    init(
+        tasksRoot: URL,
+        projectsRoot: URL,
+        now: @escaping @Sendable () -> Date = { Date() },
+        taskDataReader: @escaping @Sendable (URL, Int) throws -> Data
+    ) {
+        self.tasksRoot = tasksRoot
+        self.projectsRoot = projectsRoot
+        self.now = now
+        self.taskDataReader = taskDataReader
     }
 
     func scan(cursor: String?) async throws -> AgentSnapshot {
@@ -124,7 +140,8 @@ struct ClaudeTaskConnector: AgentConnector {
         modifiedAt: Date
     ) -> AgentItemSnapshot? {
         guard byteSize <= ClaudeLimits.maximumTaskBytes,
-              let data = try? Data(contentsOf: url, options: [.mappedIfSafe]),
+              let data = try? taskDataReader(url, ClaudeLimits.maximumTaskBytes + 1),
+              data.count <= ClaudeLimits.maximumTaskBytes,
               let task = try? JSONDecoder().decode(ClaudeTaskFile.self, from: data),
               let status = AgentItemStatus(claudeStatus: task.status)
         else {
@@ -142,6 +159,12 @@ struct ClaudeTaskConnector: AgentConnector {
             blocks: task.blocks,
             blockedBy: task.blockedBy
         )
+    }
+
+    private static func readTaskData(at url: URL, upToCount count: Int) throws -> Data {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        return try handle.read(upToCount: count) ?? Data()
     }
 
     private func makeTranscriptIndex() -> [String: URL] {
