@@ -347,6 +347,18 @@ final class CodexConnectorTests: XCTestCase {
         await transport.stop()
     }
 
+    func testBooleanResponseIDDoesNotResumeNumericPendingRequest() async throws {
+        try await Self.assertMalformedResponseIDIsIgnored("true")
+    }
+
+    func testFractionalResponseIDDoesNotResumeNumericPendingRequest() async throws {
+        try await Self.assertMalformedResponseIDIsIgnored("1.9")
+    }
+
+    func testOverflowResponseIDDoesNotResumeNumericPendingRequest() async throws {
+        try await Self.assertMalformedResponseIDIsIgnored("9223372036854775808")
+    }
+
     func testProcessRequestCancellationResumesWithCancellationError() async throws {
         let executable = try Self.makeExecutable(
             "#!/bin/sh\nwhile IFS= read -r line; do :; done\n"
@@ -533,6 +545,32 @@ final class CodexConnectorTests: XCTestCase {
             try await Task.sleep(nanoseconds: 1_000_000)
         }
         throw FakeCodexTransportError.fileDidNotAppear(url.path)
+    }
+
+    private static func assertMalformedResponseIDIsIgnored(_ malformedID: String) async throws {
+        let script = """
+        #!/bin/sh
+        IFS= read -r line
+        printf '%s\n' '{"id":\(malformedID),"result":{"value":"malformed"}}'
+        printf '%s\n' '{"id":1,"result":{"value":"valid"}}'
+        """
+        let executable = try makeExecutable(script)
+        let transport = CodexProcessTransport(
+            executablePath: executable.path,
+            requestTimeout: 1
+        )
+        try await transport.start()
+
+        let response = try await transport.request(
+            method: "thread/list",
+            params: Data(#"{}"#.utf8)
+        )
+
+        let object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: response) as? [String: String]
+        )
+        XCTAssertEqual(object["value"], "valid")
+        await transport.stop()
     }
 }
 

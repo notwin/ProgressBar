@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 
 protocol CodexRPCTransport: Sendable {
     func start() async throws
@@ -347,8 +348,7 @@ actor CodexProcessTransport: CodexRPCTransport, CodexNotificationTransport {
             return
         }
 
-        if let number = object["id"] as? NSNumber {
-            let requestID = number.intValue
+        if let requestID = strictRequestID(object["id"]) {
             guard let pending = pendingRequests[requestID] else { return }
             if pending.freezesNotifications {
                 notificationHandler = nil
@@ -369,6 +369,20 @@ actor CodexProcessTransport: CodexRPCTransport, CodexNotificationTransport {
 
         guard object["method"] is String, let notificationHandler else { return }
         await notificationHandler(line)
+    }
+
+    private func strictRequestID(_ value: Any?) -> Int? {
+        guard let number = value as? NSNumber,
+              CFGetTypeID(number) != CFBooleanGetTypeID(),
+              number.doubleValue.isFinite,
+              number.compare(NSNumber(value: Int.min)) != .orderedAscending,
+              number.compare(NSNumber(value: Int.max)) != .orderedDescending,
+              let requestID = Int(exactly: number.int64Value),
+              number.compare(NSNumber(value: requestID)) == .orderedSame
+        else {
+            return nil
+        }
+        return requestID
     }
 
     private func consumeStandardError(_ data: Data, generation: UInt64) {
