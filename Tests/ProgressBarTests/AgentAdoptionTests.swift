@@ -213,7 +213,10 @@ final class AgentAdoptionTests: XCTestCase {
         XCTAssertEqual(sink.tasks.count, 1)
         XCTAssertEqual(sink.tasks[taskID]?.title, "Review recovery")
         XCTAssertEqual(sink.tasks[taskID]?.status, .blocked)
-        XCTAssertEqual(sink.tasks[taskID]?.logs.map(\.text), ["从 Codex 会话「Task 6」接管"])
+        XCTAssertEqual(
+            sink.tasks[taskID]?.logs.map(\.text),
+            [L("agent.adoption_log_%@_%@", "Codex", "Task 6")]
+        )
         let adoption = try await store.adoption(for: item.key)
         XCTAssertEqual(adoption?.state, .completed)
     }
@@ -391,7 +394,10 @@ final class AgentAdoptionTests: XCTestCase {
         XCTAssertEqual(retriedTaskID, reservedTaskID)
         XCTAssertEqual(sink.tasks.count, 1)
         XCTAssertEqual(sink.tasks[retriedTaskID]?.status, .pending)
-        XCTAssertEqual(sink.tasks[retriedTaskID]?.logs.map(\.text), ["从 Claude Code 会话「Recovery」接管"])
+        XCTAssertEqual(
+            sink.tasks[retriedTaskID]?.logs.map(\.text),
+            [L("agent.adoption_log_%@_%@", "Claude Code", "Recovery")]
+        )
         let completedAdoption = try await store.adoption(for: item.key)
         XCTAssertEqual(completedAdoption?.state, .completed)
     }

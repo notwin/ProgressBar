@@ -500,7 +500,7 @@ final class AgentIntegrationController: ObservableObject {
             title: editedTitle,
             status: item.status.taskStatus,
             sectionID: preparedAdoption.targetSectionID,
-            logText: "从 \(sourceName) 会话「\(sessionTitle)」接管"
+            logText: L("agent.adoption_log_%@_%@", sourceName, sessionTitle)
         )
         guard inserted else {
             try await worker.failAdoption(key: item.key)
