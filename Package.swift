@@ -17,7 +17,7 @@ let package = Package(
             name: "ProgressBarTests",
             dependencies: ["ProgressBar"],
             path: "Tests/ProgressBarTests",
-            resources: [.process("Fixtures")]
+            resources: [.copy("Fixtures/Claude")]
         )
     ]
 )

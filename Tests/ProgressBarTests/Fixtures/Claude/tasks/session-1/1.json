@@ -1,0 +1,9 @@
+{
+  "id": "1",
+  "subject": "Add local agent index",
+  "description": "Persist normalized task state in a rebuildable SQLite cache.",
+  "activeForm": "Adding local agent index",
+  "status": "in_progress",
+  "blocks": ["2"],
+  "blockedBy": []
+}
