@@ -14,6 +14,7 @@ echo "==> 编译 ..."
 cd "$ROOT_DIR"
 swiftc \
   "$SRC/Models/Models.swift" "$SRC/Models/Theme.swift" \
+  "$SRC"/Agent/*.swift \
   "$SRC/Services/PersistenceManager.swift" "$SRC/Services/CalendarManager.swift" \
   "$SRC/Services/AppState.swift" "$SRC/Services/UpdateChecker.swift" \
   "$SRC/Services/HotKeyConfig.swift" "$SRC/Services/HotKeyManager.swift" \
@@ -32,6 +33,7 @@ swiftc \
   -framework UniformTypeIdentifiers \
   -framework EventKit \
   -framework Carbon \
+  -lsqlite3 \
   -o "$ROOT_DIR/jindu"
 
 echo "==> 关闭正在运行的应用 ..."

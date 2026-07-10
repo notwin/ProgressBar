@@ -10,7 +10,14 @@ let package = Package(
         .executableTarget(
             name: "ProgressBar",
             path: "Sources",
-            exclude: ["Localization"]
+            exclude: ["Localization"],
+            linkerSettings: [.linkedLibrary("sqlite3")]
+        ),
+        .testTarget(
+            name: "ProgressBarTests",
+            dependencies: ["ProgressBar"],
+            path: "Tests/ProgressBarTests",
+            resources: [.process("Fixtures")]
         )
     ]
 )

@@ -33,6 +33,7 @@ jobs:
           SRC="Sources"
           swiftc \
             "$SRC/Models/Models.swift" "$SRC/Models/Theme.swift" \
+            "$SRC"/Agent/*.swift \
             "$SRC/Services/PersistenceManager.swift" "$SRC/Services/CalendarManager.swift" \
             "$SRC/Services/AppState.swift" "$SRC/Services/UpdateChecker.swift" \
             "$SRC/Services/HotKeyConfig.swift" "$SRC/Services/HotKeyManager.swift" \
@@ -51,6 +52,7 @@ jobs:
             -framework UniformTypeIdentifiers \
             -framework EventKit \
             -framework Carbon \
+            -lsqlite3 \
             -o jindu
 
       - name: Package app bundle

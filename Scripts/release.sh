@@ -67,6 +67,7 @@ echo "==> 编译 ..."
 SRC="Sources"
 swiftc \
   "$SRC/Models/Models.swift" "$SRC/Models/Theme.swift" \
+  "$SRC"/Agent/*.swift \
   "$SRC/Services/PersistenceManager.swift" "$SRC/Services/CalendarManager.swift" \
   "$SRC/Services/AppState.swift" "$SRC/Services/UpdateChecker.swift" \
   "$SRC/Services/HotKeyConfig.swift" "$SRC/Services/HotKeyManager.swift" \
@@ -81,6 +82,7 @@ swiftc \
   -O -whole-module-optimization \
   -framework SwiftUI -framework AppKit -framework QuartzCore \
   -framework UniformTypeIdentifiers -framework EventKit -framework Carbon \
+  -lsqlite3 \
   -o jindu
 
 # ── 打包 .app ──────────────────────────────────────────────────
