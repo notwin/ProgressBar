@@ -15,6 +15,8 @@ struct ClaudeTaskConnector: AgentConnector {
     let source: AgentSource = .claude
 
     private let tasksRoot: URL
+    private let standardizedProjectsRoot: URL
+    private let canonicalProjectsRoot: URL
     private let now: @Sendable () -> Date
     private let taskDataReader: @Sendable (URL, Int) throws -> Data
     private let transcriptLocator: @Sendable (Set<String>) -> [String: URL]
@@ -27,6 +29,8 @@ struct ClaudeTaskConnector: AgentConnector {
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.tasksRoot = tasksRoot
+        self.standardizedProjectsRoot = projectsRoot.standardizedFileURL
+        self.canonicalProjectsRoot = projectsRoot.resolvingSymlinksInPath().standardizedFileURL
         self.now = now
         self.taskDataReader = { url, count in
             try Self.readTaskData(at: url, upToCount: count)
@@ -46,6 +50,8 @@ struct ClaudeTaskConnector: AgentConnector {
         taskDataReader: @escaping @Sendable (URL, Int) throws -> Data
     ) {
         self.tasksRoot = tasksRoot
+        self.standardizedProjectsRoot = projectsRoot.standardizedFileURL
+        self.canonicalProjectsRoot = projectsRoot.resolvingSymlinksInPath().standardizedFileURL
         self.now = now
         self.taskDataReader = taskDataReader
         self.transcriptLocator = { sessionIDs in
@@ -64,6 +70,8 @@ struct ClaudeTaskConnector: AgentConnector {
         transcriptDataReader: @escaping @Sendable (URL, Int) throws -> Data
     ) {
         self.tasksRoot = tasksRoot
+        self.standardizedProjectsRoot = projectsRoot.standardizedFileURL
+        self.canonicalProjectsRoot = projectsRoot.resolvingSymlinksInPath().standardizedFileURL
         self.now = now
         self.taskDataReader = { url, count in
             try Self.readTaskData(at: url, upToCount: count)
@@ -277,7 +285,7 @@ struct ClaudeTaskConnector: AgentConnector {
         guard !sessionIDs.isEmpty,
               let enumerator = FileManager.default.enumerator(
             at: projectsRoot,
-            includingPropertiesForKeys: [.isRegularFileKey],
+            includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey],
             options: [.skipsHiddenFiles]
         ) else {
             return [:]
@@ -287,7 +295,11 @@ struct ClaudeTaskConnector: AgentConnector {
             guard let url = entry as? URL,
                   url.pathExtension == "jsonl",
                   sessionIDs.contains(url.deletingPathExtension().lastPathComponent),
-                  (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
+                  let values = try? url.resourceValues(
+                    forKeys: [.isRegularFileKey, .isSymbolicLinkKey]
+                  ),
+                  values.isRegularFile == true,
+                  values.isSymbolicLink != true
             else {
                 return nil
             }
@@ -383,6 +395,7 @@ struct ClaudeTaskConnector: AgentConnector {
         var resolved: [String: ClaudeResolvedTranscript] = [:]
         var cursorBySession: [String: ClaudeCursorTranscript] = [:]
         var sessionsNeedingLocation = Set<String>()
+        var recoverablePathsBySession: [String: String] = [:]
 
         for sessionID in sessionIDs.sorted() {
             let currentTaskFingerprints = taskFingerprints[sessionID] ?? []
@@ -398,7 +411,14 @@ struct ClaudeTaskConnector: AgentConnector {
                 }
                 continue
             }
-            let url = URL(fileURLWithPath: cachedPath)
+            let untrustedURL = URL(fileURLWithPath: cachedPath)
+            guard let url = validatedTranscriptURL(untrustedURL) else {
+                if let recoverablePath = recoverableTranscriptPath(untrustedURL) {
+                    recoverablePathsBySession[sessionID] = recoverablePath
+                }
+                sessionsNeedingLocation.insert(sessionID)
+                continue
+            }
             guard let cachedByteSize = cached.byteSize,
                   let cachedModificationTimestamp = cached.modificationTimestamp,
                   let fileFingerprint = try? fingerprint(for: url)
@@ -433,7 +453,14 @@ struct ClaudeTaskConnector: AgentConnector {
             ? [:]
             : transcriptLocator(sessionsNeedingLocation)
         for sessionID in sessionsNeedingLocation.sorted() {
-            guard let url = located[sessionID],
+            guard let untrustedURL = located[sessionID] else { continue }
+            guard let url = validatedTranscriptURL(untrustedURL) else {
+                if let recoverablePath = recoverableTranscriptPath(untrustedURL) {
+                    recoverablePathsBySession[sessionID] = recoverablePath
+                }
+                continue
+            }
+            guard
                   let fileFingerprint = try? fingerprint(for: url)
             else { continue }
             let context = readTranscriptContext(at: url)
@@ -452,7 +479,7 @@ struct ClaudeTaskConnector: AgentConnector {
         for sessionID in sessionsNeedingLocation where cursorBySession[sessionID] == nil {
             cursorBySession[sessionID] = ClaudeCursorTranscript(
                 sessionID: sessionID,
-                path: nil,
+                path: recoverablePathsBySession[sessionID],
                 byteSize: nil,
                 modificationTimestamp: nil,
                 context: nil,
@@ -464,6 +491,40 @@ struct ClaudeTaskConnector: AgentConnector {
             resolved,
             cursorBySession.keys.sorted().compactMap { cursorBySession[$0] }
         )
+    }
+
+    private func validatedTranscriptURL(_ untrustedURL: URL) -> URL? {
+        guard let recoverablePath = recoverableTranscriptPath(untrustedURL) else { return nil }
+        let standardizedURL = URL(fileURLWithPath: recoverablePath)
+        guard standardizedURL.pathExtension == "jsonl",
+              let values = try? standardizedURL.resourceValues(
+                forKeys: [.isRegularFileKey, .isSymbolicLinkKey]
+              ),
+              values.isRegularFile == true,
+              values.isSymbolicLink != true
+        else {
+            return nil
+        }
+
+        let resolvedURL = standardizedURL.resolvingSymlinksInPath().standardizedFileURL
+        guard Self.path(resolvedURL.path, isWithin: canonicalProjectsRoot.path) else {
+            return nil
+        }
+        return resolvedURL
+    }
+
+    private func recoverableTranscriptPath(_ untrustedURL: URL) -> String? {
+        let standardizedURL = untrustedURL.standardizedFileURL
+        guard Self.path(standardizedURL.path, isWithin: standardizedProjectsRoot.path) else {
+            return nil
+        }
+        return standardizedURL.path
+    }
+
+    private static func path(_ candidate: String, isWithin root: String) -> Bool {
+        if candidate == root { return true }
+        let prefix = root == "/" ? "/" : root + "/"
+        return candidate.hasPrefix(prefix)
     }
 
     private func textualContent(_ value: Any?) -> String? {

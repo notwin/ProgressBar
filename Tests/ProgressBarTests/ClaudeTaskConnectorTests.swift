@@ -324,6 +324,136 @@ final class ClaudeTaskConnectorTests: XCTestCase {
         XCTAssertEqual(recovered.projects[0].displayName, "recovered")
         XCTAssertEqual(recovered.projects[0].sessions[0].title, "Recovered transcript")
     }
+
+    func testCachedTranscriptSymlinkEscapeIsNotReadAndRecoversWhenRegularFileReturns() async throws {
+        let source = try XCTUnwrap(Bundle.module.resourceURL?.appendingPathComponent("Claude"))
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.copyItem(at: source, to: root)
+        let transcriptURL = root.appendingPathComponent("projects/-tmp-example/session-1.jsonl")
+        let externalRoot = root.appendingPathComponent("projects-other")
+        try FileManager.default.createDirectory(at: externalRoot, withIntermediateDirectories: true)
+        let externalURL = externalRoot.appendingPathComponent("session-1.jsonl")
+        try Data(
+            #"{"type":"user","cwd":"/outside/escape","message":{"content":"External title"}}"#.utf8
+        ).write(to: externalURL)
+        let reads = ClaudePathRecorder()
+        let connector = ClaudeTaskConnector(
+            tasksRoot: root.appendingPathComponent("tasks"),
+            projectsRoot: root.appendingPathComponent("projects"),
+            transcriptLocator: { _ in ["session-1": transcriptURL] },
+            transcriptDataReader: { url, count in
+                reads.record(url)
+                let handle = try FileHandle(forReadingFrom: url)
+                defer { try? handle.close() }
+                return try handle.read(upToCount: count) ?? Data()
+            }
+        )
+        let first = try await connector.scan(cursor: nil)
+        XCTAssertEqual(reads.paths(), [transcriptURL.standardizedFileURL.path])
+
+        try FileManager.default.removeItem(at: transcriptURL)
+        try FileManager.default.createSymbolicLink(at: transcriptURL, withDestinationURL: externalURL)
+        let escaped = try await connector.scan(cursor: first.cursorData)
+
+        XCTAssertEqual(reads.paths(), [transcriptURL.standardizedFileURL.path])
+        XCTAssertNotEqual(escaped.projects[0].displayName, "escape")
+        XCTAssertNotEqual(escaped.projects[0].sessions[0].title, "External title")
+        XCTAssertFalse(try XCTUnwrap(escaped.cursorData).contains("External title"))
+        XCTAssertFalse(try XCTUnwrap(escaped.cursorData).contains("/outside/escape"))
+
+        try FileManager.default.removeItem(at: transcriptURL)
+        try Data(
+            #"{"type":"user","cwd":"/tmp/restored","message":{"content":"Restored title"}}"#.utf8
+        ).write(to: transcriptURL)
+        let restored = try await connector.scan(cursor: escaped.cursorData)
+
+        XCTAssertEqual(reads.paths().count, 2)
+        XCTAssertEqual(restored.projects[0].displayName, "restored")
+        XCTAssertEqual(restored.projects[0].sessions[0].title, "Restored title")
+    }
+
+    func testTamperedCursorOutsideProjectsRootIsRejectedBeforeFingerprintOrRead() async throws {
+        let source = try XCTUnwrap(Bundle.module.resourceURL?.appendingPathComponent("Claude"))
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.copyItem(at: source, to: root)
+        let safeURL = root.appendingPathComponent("projects/-tmp-example/session-1.jsonl")
+        let externalRoot = root.appendingPathComponent("projects-other")
+        try FileManager.default.createDirectory(at: externalRoot, withIntermediateDirectories: true)
+        let externalURL = externalRoot.appendingPathComponent("session-1.jsonl")
+        try Data(
+            #"{"type":"user","cwd":"/outside/cursor","message":{"content":"Forged title"}}"#.utf8
+        ).write(to: externalURL)
+        let reads = ClaudePathRecorder()
+        let connector = ClaudeTaskConnector(
+            tasksRoot: root.appendingPathComponent("tasks"),
+            projectsRoot: root.appendingPathComponent("projects"),
+            transcriptLocator: { _ in ["session-1": safeURL] },
+            transcriptDataReader: { url, count in
+                reads.record(url)
+                let handle = try FileHandle(forReadingFrom: url)
+                defer { try? handle.close() }
+                return try handle.read(upToCount: count) ?? Data()
+            }
+        )
+        let first = try await connector.scan(cursor: nil)
+        reads.reset()
+        var cursor = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(try XCTUnwrap(first.cursorData).utf8))
+                as? [String: Any]
+        )
+        var transcripts = try XCTUnwrap(cursor["transcripts"] as? [[String: Any]])
+        let attributes = try FileManager.default.attributesOfItem(atPath: externalURL.path)
+        transcripts[0]["path"] = externalURL.path
+        transcripts[0]["byteSize"] = try XCTUnwrap(attributes[.size] as? NSNumber)
+        transcripts[0]["modificationTimestamp"] = try XCTUnwrap(
+            attributes[.modificationDate] as? Date
+        ).timeIntervalSince1970
+        transcripts[0]["context"] = ["cwd": "/outside/cursor", "title": "Forged title"]
+        cursor["transcripts"] = transcripts
+        let tamperedCursor = try XCTUnwrap(String(
+            data: JSONSerialization.data(withJSONObject: cursor),
+            encoding: .utf8
+        ))
+
+        let snapshot = try await connector.scan(cursor: tamperedCursor)
+
+        XCTAssertEqual(reads.paths(), [safeURL.standardizedFileURL.path])
+        XCTAssertEqual(snapshot.projects[0].displayName, "example")
+        XCTAssertEqual(snapshot.projects[0].sessions[0].title, "Integrate local agent tasks")
+        XCTAssertFalse(try XCTUnwrap(snapshot.cursorData).contains("Forged title"))
+        XCTAssertFalse(try XCTUnwrap(snapshot.cursorData).contains("/outside/cursor"))
+    }
+
+    func testTranscriptUnderSymlinkedParentCannotEscapeProjectsRoot() async throws {
+        let source = try XCTUnwrap(Bundle.module.resourceURL?.appendingPathComponent("Claude"))
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.copyItem(at: source, to: root)
+        let externalRoot = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: externalRoot, withIntermediateDirectories: true)
+        let externalURL = externalRoot.appendingPathComponent("session-1.jsonl")
+        try Data(
+            #"{"type":"user","cwd":"/outside/parent","message":{"content":"Parent escape"}}"#.utf8
+        ).write(to: externalURL)
+        let linkedParent = root.appendingPathComponent("projects/linked")
+        try FileManager.default.createSymbolicLink(at: linkedParent, withDestinationURL: externalRoot)
+        let escapedURL = linkedParent.appendingPathComponent("session-1.jsonl")
+        let reads = ClaudePathRecorder()
+        let connector = ClaudeTaskConnector(
+            tasksRoot: root.appendingPathComponent("tasks"),
+            projectsRoot: root.appendingPathComponent("projects"),
+            transcriptLocator: { _ in ["session-1": escapedURL] },
+            transcriptDataReader: { url, _ in
+                reads.record(url)
+                return Data()
+            }
+        )
+
+        let snapshot = try await connector.scan(cursor: nil)
+
+        XCTAssertTrue(reads.paths().isEmpty)
+        XCTAssertNotEqual(snapshot.projects[0].sessions[0].title, "Parent escape")
+        XCTAssertFalse(try XCTUnwrap(snapshot.cursorData).contains("/outside/parent"))
+    }
 }
 
 private final class ClaudeLockedCounter: @unchecked Sendable {
@@ -336,5 +466,22 @@ private final class ClaudeLockedCounter: @unchecked Sendable {
 
     func value() -> Int {
         lock.withLock { count }
+    }
+}
+
+private final class ClaudePathRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var recordedPaths: [String] = []
+
+    func record(_ url: URL) {
+        lock.withLock { recordedPaths.append(url.standardizedFileURL.path) }
+    }
+
+    func paths() -> [String] {
+        lock.withLock { recordedPaths }
+    }
+
+    func reset() {
+        lock.withLock { recordedPaths = [] }
     }
 }
