@@ -89,6 +89,19 @@ struct AgentDashboard: Equatable, Sendable {
     let projects: [AgentProjectSnapshot]
     let sourceStates: [AgentSourceState]
     let adoptions: [AgentItemKey: AgentAdoptionRecord]
+    let hasStoredStructuredItems: Bool
+
+    init(
+        projects: [AgentProjectSnapshot],
+        sourceStates: [AgentSourceState],
+        adoptions: [AgentItemKey: AgentAdoptionRecord],
+        hasStoredStructuredItems: Bool = false
+    ) {
+        self.projects = projects
+        self.sourceStates = sourceStates
+        self.adoptions = adoptions
+        self.hasStoredStructuredItems = hasStoredStructuredItems
+    }
 
     var adoptedKeys: Set<AgentItemKey> { Set(adoptions.keys) }
 }

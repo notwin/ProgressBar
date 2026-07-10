@@ -234,7 +234,7 @@ final class AgentIntegrationController: ObservableObject {
     var emptyStateKind: AgentEmptyStateKind? {
         guard dashboard.projects.isEmpty else { return nil }
         if showingHistory { return .emptyHistory }
-        if dashboard.sourceStates.contains(where: { $0.lastSuccessAt != nil }) {
+        if dashboard.hasStoredStructuredItems {
             return .noUnfinishedItems
         }
         return .noStructuredItems

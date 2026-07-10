@@ -50,15 +50,27 @@ final class AgentIntegrationControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testEmptyStateDistinguishesReliableScanFromUnavailableStructuredData() async throws {
+    func testEmptyStateKeepsSuccessfulEmptyScanAsNoStructuredItems() async throws {
         let controller = try await makeController(connectors: [SnapshotConnector(items: [])])
         XCTAssertEqual(controller.emptyStateKind, .noStructuredItems)
 
         await controller.refresh()
-        XCTAssertEqual(controller.emptyStateKind, .noUnfinishedItems)
+        XCTAssertEqual(controller.emptyStateKind, .noStructuredItems)
 
         await controller.setShowingHistory(true)
         XCTAssertEqual(controller.emptyStateKind, .emptyHistory)
+    }
+
+    @MainActor
+    func testEmptyStateUsesNoUnfinishedWhenCompletedStructuredHistoryExists() async throws {
+        let controller = try await makeController(connectors: [
+            SnapshotConnector(items: [AgentFixtures.item(id: "done", status: .done)])
+        ])
+
+        await controller.refresh()
+
+        XCTAssertTrue(controller.dashboard.projects.isEmpty)
+        XCTAssertEqual(controller.emptyStateKind, .noUnfinishedItems)
     }
 
     @MainActor

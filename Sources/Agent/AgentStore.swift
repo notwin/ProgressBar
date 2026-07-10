@@ -371,7 +371,8 @@ actor AgentStore {
         return AgentDashboard(
             projects: projects,
             sourceStates: try readSourceStates(),
-            adoptions: try readAdoptions()
+            adoptions: try readAdoptions(),
+            hasStoredStructuredItems: try hasStoredStructuredItems()
         )
     }
 
@@ -575,6 +576,17 @@ actor AgentStore {
                 error: nil
             )
         }
+    }
+
+    private func hasStoredStructuredItems() throws -> Bool {
+        let statement = try SQLiteStatement(
+            database: database,
+            sql: "SELECT EXISTS(SELECT 1 FROM agent_items LIMIT 1)"
+        )
+        guard try statement.step() else {
+            throw AgentStoreError.invalidData("structured-item existence query returned no row")
+        }
+        return statement.integer(at: 0) != 0
     }
 
     private func readAdoptions() throws -> [AgentItemKey: AgentAdoptionRecord] {

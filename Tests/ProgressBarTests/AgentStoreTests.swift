@@ -261,6 +261,18 @@ final class AgentStoreTests: XCTestCase {
         XCTAssertEqual(dashboard.adoptions[key]?.state, .completed)
     }
 
+    func testDashboardReportsWhetherAnyStructuredItemsAreStored() async throws {
+        let store = try await makeStore()
+        let emptyDashboard = try await store.dashboard(includeHistory: false)
+        XCTAssertFalse(emptyDashboard.hasStoredStructuredItems)
+
+        try await store.apply(snapshot: AgentFixtures.snapshot(status: .done))
+        let completedOnlyDashboard = try await store.dashboard(includeHistory: false)
+
+        XCTAssertTrue(completedOnlyDashboard.projects.isEmpty)
+        XCTAssertTrue(completedOnlyDashboard.hasStoredStructuredItems)
+    }
+
     private func rowCount(in table: String, databaseURL: URL) throws -> Int {
         var database: OpaquePointer?
         guard sqlite3_open_v2(databaseURL.path, &database, SQLITE_OPEN_READONLY, nil) == SQLITE_OK,
