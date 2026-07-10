@@ -111,6 +111,60 @@ final class AgentIntegrationControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testClaudeSchemaFailurePreservesCachedItemCursorAndLastSuccess() async throws {
+        let fixture = try XCTUnwrap(Bundle.module.resourceURL?.appendingPathComponent("Claude"))
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.copyItem(at: fixture, to: root)
+        let store = try await AgentStore(databaseURL: root.appendingPathComponent("agent.sqlite"))
+        let connector = ClaudeTaskConnector(
+            tasksRoot: root.appendingPathComponent("tasks"),
+            projectsRoot: root.appendingPathComponent("projects"),
+            now: { Date(timeIntervalSince1970: 100) }
+        )
+        let controller = AgentIntegrationController(
+            store: store,
+            connectors: [connector],
+            notificationCenter: NotificationCenter(),
+            pollScheduler: TestPollScheduler(),
+            applicationIsActiveProvider: { true },
+            now: { Date(timeIntervalSince1970: 200) }
+        )
+
+        await controller.refresh()
+        let successfulCursor = try await store.cursor(for: .claude)
+        XCTAssertEqual(controller.activeItemCount, 1)
+
+        let taskURL = root.appendingPathComponent("tasks/session-1/1.json")
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(contentsOf: taskURL)) as? [String: Any]
+        )
+        object["status"] = "waiting"
+        try JSONSerialization.data(withJSONObject: object).write(to: taskURL, options: .atomic)
+
+        await controller.refresh()
+
+        let state = try XCTUnwrap(controller.dashboard.sourceStates.first { $0.source == .claude })
+        XCTAssertEqual(controller.activeItemCount, 1)
+        XCTAssertNotNil(state.error)
+        XCTAssertEqual(state.lastSuccessAt, Date(timeIntervalSince1970: 100))
+        let cursorAfterFailure = try await store.cursor(for: .claude)
+        XCTAssertEqual(cursorAfterFailure, successfulCursor)
+
+        try Data("{temporarily incomplete".utf8).write(to: taskURL, options: .atomic)
+        await controller.refresh()
+
+        XCTAssertEqual(controller.activeItemCount, 1)
+        XCTAssertNil(controller.dashboard.sourceStates.first { $0.source == .claude }?.error)
+        let cursorAfterMalformedFile = try await store.cursor(for: .claude)
+        XCTAssertEqual(cursorAfterMalformedFile, successfulCursor)
+
+        try FileManager.default.removeItem(at: taskURL)
+        await controller.refresh()
+
+        XCTAssertEqual(controller.activeItemCount, 0)
+    }
+
+    @MainActor
     func testRefreshCoalescesConcurrentRequestsIntoOnePendingPass() async throws {
         let connector = GatedCountingConnector()
         let controller = try await makeController(connectors: [connector])

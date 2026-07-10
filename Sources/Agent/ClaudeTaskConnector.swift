@@ -1,12 +1,24 @@
 import Foundation
 
+enum ClaudeTaskConnectorError: LocalizedError {
+    case incompatibleTaskSchema(path: String)
+
+    var errorDescription: String? {
+        switch self {
+        case .incompatibleTaskSchema(let path):
+            return "Claude task schema is incompatible: \(path)"
+        }
+    }
+}
+
 struct ClaudeTaskConnector: AgentConnector {
     let source: AgentSource = .claude
 
     private let tasksRoot: URL
-    private let projectsRoot: URL
     private let now: @Sendable () -> Date
     private let taskDataReader: @Sendable (URL, Int) throws -> Data
+    private let transcriptLocator: @Sendable (Set<String>) -> [String: URL]
+    private let transcriptDataReader: @Sendable (URL, Int) throws -> Data
     private var fileManager: FileManager { .default }
 
     init(
@@ -15,9 +27,14 @@ struct ClaudeTaskConnector: AgentConnector {
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.tasksRoot = tasksRoot
-        self.projectsRoot = projectsRoot
         self.now = now
         self.taskDataReader = { url, count in
+            try Self.readTaskData(at: url, upToCount: count)
+        }
+        self.transcriptLocator = { sessionIDs in
+            Self.locateTranscripts(in: projectsRoot, sessionIDs: sessionIDs)
+        }
+        self.transcriptDataReader = { url, count in
             try Self.readTaskData(at: url, upToCount: count)
         }
     }
@@ -29,55 +46,130 @@ struct ClaudeTaskConnector: AgentConnector {
         taskDataReader: @escaping @Sendable (URL, Int) throws -> Data
     ) {
         self.tasksRoot = tasksRoot
-        self.projectsRoot = projectsRoot
         self.now = now
         self.taskDataReader = taskDataReader
+        self.transcriptLocator = { sessionIDs in
+            Self.locateTranscripts(in: projectsRoot, sessionIDs: sessionIDs)
+        }
+        self.transcriptDataReader = { url, count in
+            try Self.readTaskData(at: url, upToCount: count)
+        }
+    }
+
+    init(
+        tasksRoot: URL,
+        projectsRoot: URL,
+        now: @escaping @Sendable () -> Date = { Date() },
+        transcriptLocator: @escaping @Sendable (Set<String>) -> [String: URL],
+        transcriptDataReader: @escaping @Sendable (URL, Int) throws -> Data
+    ) {
+        self.tasksRoot = tasksRoot
+        self.now = now
+        self.taskDataReader = { url, count in
+            try Self.readTaskData(at: url, upToCount: count)
+        }
+        self.transcriptLocator = transcriptLocator
+        self.transcriptDataReader = transcriptDataReader
     }
 
     func scan(cursor: String?) async throws -> AgentSnapshot {
-        let priorFiles = decodeCursor(cursor)
+        let priorCursor = decodeCursor(cursor)
+        let priorFiles = Dictionary(
+            priorCursor.files.map { ($0.path, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         let taskFiles = try discoverTaskFiles()
-        let transcriptIndex = makeTranscriptIndex()
         var nextCursorFiles: [ClaudeCursorFile] = []
+        var taskFingerprintsBySession: [String: [ClaudeCursorTaskFingerprint]] = [:]
         var itemsBySession: [String: [AgentItemSnapshot]] = [:]
 
         for taskFile in taskFiles {
-            let fingerprint = try fingerprint(for: taskFile.url)
-            let prior = priorFiles[taskFile.url.standardizedFileURL.path]
+            let path = taskFile.url.standardizedFileURL.path
+            let prior = priorFiles[path]
+            let fileFingerprint: ClaudeTaskFingerprint
+            do {
+                fileFingerprint = try fingerprint(for: taskFile.url)
+            } catch {
+                if let prior {
+                    nextCursorFiles.append(prior)
+                    taskFingerprintsBySession[taskFile.sessionID, default: []].append(
+                        ClaudeCursorTaskFingerprint(prior)
+                    )
+                    if let cached = prior.item?.snapshot,
+                       cached.key.source == .claude,
+                       cached.key.sessionID == taskFile.sessionID {
+                        itemsBySession[taskFile.sessionID, default: []].append(cached)
+                    }
+                }
+                continue
+            }
             let item: AgentItemSnapshot?
+            var cursorFile: ClaudeCursorFile
 
-            if fingerprint.byteSize <= ClaudeLimits.maximumTaskBytes,
-               prior?.byteSize == fingerprint.byteSize,
-               prior?.modificationTimestamp == fingerprint.modificationTimestamp,
-               let cached = prior?.item?.snapshot,
+            if let prior,
+               fileFingerprint.byteSize <= ClaudeLimits.maximumTaskBytes,
+               prior.byteSize == fileFingerprint.byteSize,
+               prior.modificationTimestamp == fileFingerprint.modificationTimestamp,
+               let cached = prior.item?.snapshot,
                cached.key.source == .claude,
                cached.key.sessionID == taskFile.sessionID {
                 item = cached
+                cursorFile = prior
             } else {
-                item = decodeTask(
+                switch try decodeTask(
                     at: taskFile.url,
                     sessionID: taskFile.sessionID,
-                    byteSize: fingerprint.byteSize,
-                    modifiedAt: fingerprint.modifiedAt
-                )
+                    byteSize: fileFingerprint.byteSize,
+                    modifiedAt: fileFingerprint.modifiedAt
+                ) {
+                case .valid(let decoded):
+                    item = decoded
+                    cursorFile = ClaudeCursorFile(
+                        path: path,
+                        byteSize: fileFingerprint.byteSize,
+                        modificationTimestamp: fileFingerprint.modificationTimestamp,
+                        item: ClaudeCursorItem(decoded)
+                    )
+                case .malformed:
+                    if let prior,
+                       let cached = prior.item?.snapshot,
+                       cached.key.source == .claude,
+                       cached.key.sessionID == taskFile.sessionID {
+                        item = cached
+                        cursorFile = prior
+                    } else {
+                        item = nil
+                        cursorFile = ClaudeCursorFile(
+                            path: path,
+                            byteSize: fileFingerprint.byteSize,
+                            modificationTimestamp: fileFingerprint.modificationTimestamp,
+                            item: nil
+                        )
+                    }
+                }
             }
 
-            nextCursorFiles.append(ClaudeCursorFile(
-                path: taskFile.url.standardizedFileURL.path,
-                byteSize: fingerprint.byteSize,
-                modificationTimestamp: fingerprint.modificationTimestamp,
-                item: item.map(ClaudeCursorItem.init)
-            ))
+            nextCursorFiles.append(cursorFile)
+            taskFingerprintsBySession[taskFile.sessionID, default: []].append(
+                ClaudeCursorTaskFingerprint(cursorFile)
+            )
             if let item {
                 itemsBySession[taskFile.sessionID, default: []].append(item)
             }
         }
 
-        let projects = buildProjects(
-            from: itemsBySession,
-            transcriptIndex: transcriptIndex
+        let transcriptState = resolveTranscripts(
+            for: Set(itemsBySession.keys),
+            taskFingerprints: taskFingerprintsBySession.mapValues {
+                $0.sorted { $0.path < $1.path }
+            },
+            prior: Dictionary(
+                priorCursor.transcripts.map { ($0.sessionID, $0) },
+                uniquingKeysWith: { first, _ in first }
+            )
         )
-        let nextCursor = ClaudeCursor(files: nextCursorFiles)
+        let projects = buildProjects(from: itemsBySession, transcripts: transcriptState.resolved)
+        let nextCursor = ClaudeCursor(files: nextCursorFiles, transcripts: transcriptState.cursor)
         let cursorData = try String(
             decoding: JSONEncoder.claudeCursor.encode(nextCursor),
             as: UTF8.self
@@ -138,17 +230,28 @@ struct ClaudeTaskConnector: AgentConnector {
         sessionID: String,
         byteSize: Int,
         modifiedAt: Date
-    ) -> AgentItemSnapshot? {
-        guard byteSize <= ClaudeLimits.maximumTaskBytes,
-              let data = try? taskDataReader(url, ClaudeLimits.maximumTaskBytes + 1),
-              data.count <= ClaudeLimits.maximumTaskBytes,
-              let task = try? JSONDecoder().decode(ClaudeTaskFile.self, from: data),
-              let status = AgentItemStatus(claudeStatus: task.status)
-        else {
-            return nil
+    ) throws -> ClaudeTaskDecodeResult {
+        guard byteSize <= ClaudeLimits.maximumTaskBytes else { return .malformed }
+        let data: Data
+        do {
+            data = try taskDataReader(url, ClaudeLimits.maximumTaskBytes + 1)
+        } catch {
+            return .malformed
+        }
+        guard data.count <= ClaudeLimits.maximumTaskBytes else { return .malformed }
+        guard (try? JSONSerialization.jsonObject(with: data)) != nil else { return .malformed }
+
+        let task: ClaudeTaskFile
+        do {
+            task = try JSONDecoder().decode(ClaudeTaskFile.self, from: data)
+        } catch {
+            throw ClaudeTaskConnectorError.incompatibleTaskSchema(path: url.path)
+        }
+        guard let status = AgentItemStatus(claudeStatus: task.status) else {
+            throw ClaudeTaskConnectorError.incompatibleTaskSchema(path: url.path)
         }
 
-        return AgentItemSnapshot(
+        return .valid(AgentItemSnapshot(
             key: AgentItemKey(source: .claude, sessionID: sessionID, itemID: task.id),
             kind: .todo,
             title: task.subject,
@@ -158,7 +261,7 @@ struct ClaudeTaskConnector: AgentConnector {
             sourceUpdatedAt: modifiedAt,
             blocks: task.blocks,
             blockedBy: task.blockedBy
-        )
+        ))
     }
 
     private static func readTaskData(at url: URL, upToCount count: Int) throws -> Data {
@@ -167,8 +270,12 @@ struct ClaudeTaskConnector: AgentConnector {
         return try handle.read(upToCount: count) ?? Data()
     }
 
-    private func makeTranscriptIndex() -> [String: URL] {
-        guard let enumerator = fileManager.enumerator(
+    private static func locateTranscripts(
+        in projectsRoot: URL,
+        sessionIDs: Set<String>
+    ) -> [String: URL] {
+        guard !sessionIDs.isEmpty,
+              let enumerator = FileManager.default.enumerator(
             at: projectsRoot,
             includingPropertiesForKeys: [.isRegularFileKey],
             options: [.skipsHiddenFiles]
@@ -179,6 +286,7 @@ struct ClaudeTaskConnector: AgentConnector {
         let transcripts = enumerator.compactMap { entry -> URL? in
             guard let url = entry as? URL,
                   url.pathExtension == "jsonl",
+                  sessionIDs.contains(url.deletingPathExtension().lastPathComponent),
                   (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
             else {
                 return nil
@@ -198,7 +306,7 @@ struct ClaudeTaskConnector: AgentConnector {
 
     private func buildProjects(
         from itemsBySession: [String: [AgentItemSnapshot]],
-        transcriptIndex: [String: URL]
+        transcripts: [String: ClaudeResolvedTranscript]
     ) -> [AgentProjectSnapshot] {
         var sessionsByProject: [ClaudeProjectIdentity: [AgentSessionSnapshot]] = [:]
 
@@ -217,8 +325,8 @@ struct ClaudeTaskConnector: AgentConnector {
                     blockedBy: item.blockedBy
                 )
             }
-            let transcriptURL = transcriptIndex[sessionID]
-            let transcript = transcriptURL.flatMap(readTranscriptContext)
+            let transcriptURL = transcripts[sessionID]?.url
+            let transcript = transcripts[sessionID]?.context
             let project = projectIdentity(transcript: transcript, transcriptURL: transcriptURL, sessionID: sessionID)
             let updatedAt = items.compactMap(\.sourceUpdatedAt).max() ?? now()
             let session = AgentSessionSnapshot(
@@ -243,9 +351,7 @@ struct ClaudeTaskConnector: AgentConnector {
     }
 
     private func readTranscriptContext(at url: URL) -> ClaudeTranscriptContext? {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
-        defer { try? handle.close() }
-        guard let data = try? handle.read(upToCount: ClaudeLimits.maximumTranscriptBytes) else {
+        guard let data = try? transcriptDataReader(url, ClaudeLimits.maximumTranscriptBytes) else {
             return nil
         }
 
@@ -267,6 +373,97 @@ struct ClaudeTaskConnector: AgentConnector {
             )
         }
         return nil
+    }
+
+    private func resolveTranscripts(
+        for sessionIDs: Set<String>,
+        taskFingerprints: [String: [ClaudeCursorTaskFingerprint]],
+        prior: [String: ClaudeCursorTranscript]
+    ) -> (resolved: [String: ClaudeResolvedTranscript], cursor: [ClaudeCursorTranscript]) {
+        var resolved: [String: ClaudeResolvedTranscript] = [:]
+        var cursorBySession: [String: ClaudeCursorTranscript] = [:]
+        var sessionsNeedingLocation = Set<String>()
+
+        for sessionID in sessionIDs.sorted() {
+            let currentTaskFingerprints = taskFingerprints[sessionID] ?? []
+            guard let cached = prior[sessionID] else {
+                sessionsNeedingLocation.insert(sessionID)
+                continue
+            }
+            guard let cachedPath = cached.path else {
+                if cached.taskFingerprints == currentTaskFingerprints {
+                    cursorBySession[sessionID] = cached
+                } else {
+                    sessionsNeedingLocation.insert(sessionID)
+                }
+                continue
+            }
+            let url = URL(fileURLWithPath: cachedPath)
+            guard let cachedByteSize = cached.byteSize,
+                  let cachedModificationTimestamp = cached.modificationTimestamp,
+                  let fileFingerprint = try? fingerprint(for: url)
+            else {
+                sessionsNeedingLocation.insert(sessionID)
+                continue
+            }
+
+            if cachedByteSize == fileFingerprint.byteSize,
+               cachedModificationTimestamp == fileFingerprint.modificationTimestamp {
+                cursorBySession[sessionID] = cached.withTaskFingerprints(currentTaskFingerprints)
+                resolved[sessionID] = ClaudeResolvedTranscript(
+                    url: url,
+                    context: cached.context
+                )
+            } else {
+                let context = readTranscriptContext(at: url)
+                let refreshed = ClaudeCursorTranscript(
+                    sessionID: sessionID,
+                    path: url.standardizedFileURL.path,
+                    byteSize: fileFingerprint.byteSize,
+                    modificationTimestamp: fileFingerprint.modificationTimestamp,
+                    context: context,
+                    taskFingerprints: currentTaskFingerprints
+                )
+                cursorBySession[sessionID] = refreshed
+                resolved[sessionID] = ClaudeResolvedTranscript(url: url, context: context)
+            }
+        }
+
+        let located = sessionsNeedingLocation.isEmpty
+            ? [:]
+            : transcriptLocator(sessionsNeedingLocation)
+        for sessionID in sessionsNeedingLocation.sorted() {
+            guard let url = located[sessionID],
+                  let fileFingerprint = try? fingerprint(for: url)
+            else { continue }
+            let context = readTranscriptContext(at: url)
+            let currentTaskFingerprints = taskFingerprints[sessionID] ?? []
+            let discovered = ClaudeCursorTranscript(
+                sessionID: sessionID,
+                path: url.standardizedFileURL.path,
+                byteSize: fileFingerprint.byteSize,
+                modificationTimestamp: fileFingerprint.modificationTimestamp,
+                context: context,
+                taskFingerprints: currentTaskFingerprints
+            )
+            cursorBySession[sessionID] = discovered
+            resolved[sessionID] = ClaudeResolvedTranscript(url: url, context: context)
+        }
+        for sessionID in sessionsNeedingLocation where cursorBySession[sessionID] == nil {
+            cursorBySession[sessionID] = ClaudeCursorTranscript(
+                sessionID: sessionID,
+                path: nil,
+                byteSize: nil,
+                modificationTimestamp: nil,
+                context: nil,
+                taskFingerprints: taskFingerprints[sessionID] ?? []
+            )
+        }
+
+        return (
+            resolved,
+            cursorBySession.keys.sorted().compactMap { cursorBySession[$0] }
+        )
     }
 
     private func textualContent(_ value: Any?) -> String? {
@@ -318,14 +515,14 @@ struct ClaudeTaskConnector: AgentConnector {
         )
     }
 
-    private func decodeCursor(_ cursor: String?) -> [String: ClaudeCursorFile] {
+    private func decodeCursor(_ cursor: String?) -> ClaudeCursor {
         guard let cursor,
               let data = cursor.data(using: .utf8),
               let decoded = try? JSONDecoder().decode(ClaudeCursor.self, from: data)
         else {
-            return [:]
+            return ClaudeCursor(files: [], transcripts: [])
         }
-        return Dictionary(decoded.files.map { ($0.path, $0) }, uniquingKeysWith: { first, _ in first })
+        return decoded
     }
 }
 
@@ -355,9 +552,19 @@ private struct ClaudeTaskFingerprint {
     let modificationTimestamp: TimeInterval
 }
 
-private struct ClaudeTranscriptContext {
+private enum ClaudeTaskDecodeResult {
+    case valid(AgentItemSnapshot)
+    case malformed
+}
+
+private struct ClaudeTranscriptContext: Codable {
     let cwd: String
     let title: String
+}
+
+private struct ClaudeResolvedTranscript {
+    let url: URL
+    let context: ClaudeTranscriptContext?
 }
 
 private struct ClaudeProjectIdentity: Hashable {
@@ -368,6 +575,91 @@ private struct ClaudeProjectIdentity: Hashable {
 
 private struct ClaudeCursor: Codable {
     let files: [ClaudeCursorFile]
+    let transcripts: [ClaudeCursorTranscript]
+
+    init(files: [ClaudeCursorFile], transcripts: [ClaudeCursorTranscript]) {
+        self.files = files
+        self.transcripts = transcripts
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        files = try container.decode([ClaudeCursorFile].self, forKey: .files)
+        transcripts = try container.decodeIfPresent(
+            [ClaudeCursorTranscript].self,
+            forKey: .transcripts
+        ) ?? []
+    }
+}
+
+private struct ClaudeCursorTranscript: Codable {
+    let sessionID: String
+    let path: String?
+    let byteSize: Int?
+    let modificationTimestamp: TimeInterval?
+    let context: ClaudeTranscriptContext?
+    let taskFingerprints: [ClaudeCursorTaskFingerprint]
+
+    private enum CodingKeys: String, CodingKey {
+        case sessionID, path, byteSize, modificationTimestamp, context, taskFingerprints
+    }
+
+    init(
+        sessionID: String,
+        path: String?,
+        byteSize: Int?,
+        modificationTimestamp: TimeInterval?,
+        context: ClaudeTranscriptContext?,
+        taskFingerprints: [ClaudeCursorTaskFingerprint]
+    ) {
+        self.sessionID = sessionID
+        self.path = path
+        self.byteSize = byteSize
+        self.modificationTimestamp = modificationTimestamp
+        self.context = context
+        self.taskFingerprints = taskFingerprints
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        sessionID = try container.decode(String.self, forKey: .sessionID)
+        path = try container.decodeIfPresent(String.self, forKey: .path)
+        byteSize = try container.decodeIfPresent(Int.self, forKey: .byteSize)
+        modificationTimestamp = try container.decodeIfPresent(
+            TimeInterval.self,
+            forKey: .modificationTimestamp
+        )
+        context = try container.decodeIfPresent(ClaudeTranscriptContext.self, forKey: .context)
+        taskFingerprints = try container.decodeIfPresent(
+            [ClaudeCursorTaskFingerprint].self,
+            forKey: .taskFingerprints
+        ) ?? []
+    }
+
+    func withTaskFingerprints(
+        _ taskFingerprints: [ClaudeCursorTaskFingerprint]
+    ) -> ClaudeCursorTranscript {
+        ClaudeCursorTranscript(
+            sessionID: sessionID,
+            path: path,
+            byteSize: byteSize,
+            modificationTimestamp: modificationTimestamp,
+            context: context,
+            taskFingerprints: taskFingerprints
+        )
+    }
+}
+
+private struct ClaudeCursorTaskFingerprint: Codable, Equatable {
+    let path: String
+    let byteSize: Int
+    let modificationTimestamp: TimeInterval
+
+    init(_ file: ClaudeCursorFile) {
+        path = file.path
+        byteSize = file.byteSize
+        modificationTimestamp = file.modificationTimestamp
+    }
 }
 
 private struct ClaudeCursorFile: Codable {
