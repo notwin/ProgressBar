@@ -141,21 +141,17 @@ struct AgentSectionView: View {
             Text(emptyStateTitle)
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(theme.t2)
-            Text(emptyStateDetail)
-                .font(.system(size: 12))
-                .foregroundColor(theme.t3)
-                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 70)
     }
 
     private var emptyStateTitle: String {
-        agents.showingHistory ? L("agent.empty_history") : L("agent.empty")
-    }
-
-    private var emptyStateDetail: String {
-        agents.showingHistory ? "" : L("agent.no_structured_items")
+        switch agents.emptyStateKind {
+        case .emptyHistory: return L("agent.empty_history")
+        case .noUnfinishedItems: return L("agent.empty")
+        case .noStructuredItems, nil: return L("agent.no_structured_items")
+        }
     }
 
     private func projectGroup(_ project: AgentProjectSnapshot) -> some View {
@@ -217,37 +213,55 @@ struct AgentSectionView: View {
         .cornerRadius(8)
     }
 
+    @ViewBuilder
     private func itemRow(_ item: AgentItemSnapshot, session: AgentSessionSnapshot) -> some View {
-        DisclosureGroup(
-            isExpanded: expansionBinding(item.key, in: $expandedItems)
-        ) {
-            itemDetail(item)
-                .padding(.leading, 24)
-                .padding(.top, 5)
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: statusIcon(item.status))
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(statusColor(item.status))
-                    .frame(width: 14)
-                Text(item.title)
-                    .font(.system(size: 12))
-                    .foregroundColor(theme.t1)
-                    .lineLimit(2)
-                Spacer(minLength: 8)
-                if let updatedAt = item.sourceUpdatedAt {
-                    Text(relativeTime(updatedAt))
-                        .font(.system(size: 10))
-                        .foregroundColor(theme.t3)
+        Group {
+            if hasDetail(item) {
+                DisclosureGroup(
+                    isExpanded: expansionBinding(item.key, in: $expandedItems)
+                ) {
+                    itemDetail(item)
+                        .padding(.leading, 24)
+                        .padding(.top, 5)
+                } label: {
+                    itemRowLabel(item, session: session)
                 }
-                adoptionControl(item, session: session)
+                .tint(theme.t3)
+            } else {
+                itemRowLabel(item, session: session)
             }
         }
-        .tint(theme.t3)
         .padding(.horizontal, 9)
         .padding(.vertical, 7)
         .background(theme.bg.opacity(0.55))
         .cornerRadius(7)
+    }
+
+    private func itemRowLabel(
+        _ item: AgentItemSnapshot,
+        session: AgentSessionSnapshot
+    ) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: statusIcon(item.status))
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(statusColor(item.status))
+                .frame(width: 14)
+            Text(item.title)
+                .font(.system(size: 12))
+                .foregroundColor(theme.t1)
+                .lineLimit(2)
+            Spacer(minLength: 8)
+            if let updatedAt = item.sourceUpdatedAt {
+                Text(relativeTime(updatedAt))
+                    .font(.system(size: 10))
+                    .foregroundColor(theme.t3)
+            }
+            adoptionControl(item, session: session)
+        }
+    }
+
+    private func hasDetail(_ item: AgentItemSnapshot) -> Bool {
+        !item.description.isEmpty || !item.blocks.isEmpty || !item.blockedBy.isEmpty
     }
 
     @ViewBuilder
@@ -264,11 +278,6 @@ struct AgentSectionView: View {
             }
             if !item.blocks.isEmpty {
                 dependencyRow("arrow.up.circle", values: item.blocks)
-            }
-            if item.description.isEmpty && item.blocks.isEmpty && item.blockedBy.isEmpty {
-                Text(L("agent.no_structured_items"))
-                    .font(.system(size: 11))
-                    .foregroundColor(theme.t3)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

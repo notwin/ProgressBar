@@ -231,6 +231,15 @@ final class AgentIntegrationController: ObservableObject {
         }
     }
 
+    var emptyStateKind: AgentEmptyStateKind? {
+        guard dashboard.projects.isEmpty else { return nil }
+        if showingHistory { return .emptyHistory }
+        if dashboard.sourceStates.contains(where: { $0.lastSuccessAt != nil }) {
+            return .noUnfinishedItems
+        }
+        return .noStructuredItems
+    }
+
     private static let pollingInterval: TimeInterval = 10
 
     private let worker: AgentRefreshWorker

@@ -109,6 +109,12 @@ enum AgentAdoptionPresentation: Equatable, Sendable {
     case adoptedTaskMissing(taskID: String)
 }
 
+enum AgentEmptyStateKind: Equatable, Sendable {
+    case emptyHistory
+    case noUnfinishedItems
+    case noStructuredItems
+}
+
 protocol AgentConnector: Sendable {
     var source: AgentSource { get }
     func scan(cursor: String?) async throws -> AgentSnapshot

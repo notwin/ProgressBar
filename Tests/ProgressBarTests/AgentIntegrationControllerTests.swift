@@ -50,6 +50,18 @@ final class AgentIntegrationControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testEmptyStateDistinguishesReliableScanFromUnavailableStructuredData() async throws {
+        let controller = try await makeController(connectors: [SnapshotConnector(items: [])])
+        XCTAssertEqual(controller.emptyStateKind, .noStructuredItems)
+
+        await controller.refresh()
+        XCTAssertEqual(controller.emptyStateKind, .noUnfinishedItems)
+
+        await controller.setShowingHistory(true)
+        XCTAssertEqual(controller.emptyStateKind, .emptyHistory)
+    }
+
+    @MainActor
     func testReloadConnectorConfigurationRebuildsConnectorsBeforeRefresh() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)

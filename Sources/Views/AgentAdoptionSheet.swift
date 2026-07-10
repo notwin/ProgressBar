@@ -43,13 +43,14 @@ struct AgentAdoptionSheet: View {
                 TextField("", text: $editedTitle)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: 14))
+                    .accessibilityLabel(Text(L("agent.adoption_title")))
             }
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(L("agent.adoption_target"))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(state.theme.t2)
-                Picker("", selection: $targetSectionID) {
+                Picker(L("agent.adoption_target"), selection: $targetSectionID) {
                     ForEach(state.sections) { section in
                         Text(section.name).tag(section.id)
                     }
